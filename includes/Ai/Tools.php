@@ -21,8 +21,33 @@ final class Tools {
 	/** Tracks human-visible results (created/updated drafts) for the UI. */
 	private array $actions = array();
 
+	/** @var callable Audit logger: fn(string $tool, int $post_id, string $detail). */
+	private $audit;
+
+	public function __construct( ?callable $audit = null ) {
+		$this->audit = $audit ?? static function ( string $tool, int $post_id, string $detail ): void {};
+	}
+
 	public function actions(): array {
 		return $this->actions;
+	}
+
+	/** Human-readable progress labels for the chat UI. */
+	public static function label( string $tool ): string {
+		switch ( $tool ) {
+			case 'list_content':
+				return __( 'Looking through your content…', 'dennis-content-builder' );
+			case 'read_content':
+				return __( 'Reading the page…', 'dennis-content-builder' );
+			case 'create_draft':
+				return __( 'Writing your draft…', 'dennis-content-builder' );
+			case 'update_content':
+				return __( 'Applying the changes…', 'dennis-content-builder' );
+			case 'search_media':
+				return __( 'Searching the media library…', 'dennis-content-builder' );
+			default:
+				return __( 'Working…', 'dennis-content-builder' );
+		}
 	}
 
 	/**
@@ -129,6 +154,19 @@ final class Tools {
 	 * failures return ['error' => ...] so Claude can adapt.
 	 */
 	public function execute( string $name, array $input ): array {
+		$result = $this->dispatch( $name, $input );
+
+		$post_id = absint( $result['post_id'] ?? $input['post_id'] ?? 0 );
+		$detail  = isset( $result['error'] )
+			? 'ERROR: ' . $result['error']
+			: wp_json_encode( array_intersect_key( $input, array_flip( array( 'post_type', 'title', 'search' ) ) ) );
+
+		( $this->audit )( $name, $post_id, (string) $detail );
+
+		return $result;
+	}
+
+	private function dispatch( string $name, array $input ): array {
 		try {
 			switch ( $name ) {
 				case 'list_content':

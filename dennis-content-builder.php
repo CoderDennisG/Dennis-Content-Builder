@@ -8,7 +8,7 @@
  * Plugin Name:       Dennis Content Builder
  * Plugin URI:        https://myfreelance101.com
  * Description:       Build and edit WordPress content by chatting with AI. Gutenberg-native, drafts only.
- * Version:           0.1.0
+ * Version:           0.2.0
  * Requires at least: 6.6
  * Requires PHP:      8.1
  * Author:            Dennis Gutierrez
@@ -23,7 +23,7 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-define( 'DCB_VERSION', '0.1.0' );
+define( 'DCB_VERSION', '0.2.0' );
 define( 'DCB_PLUGIN_FILE', __FILE__ );
 define( 'DCB_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DCB_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -44,4 +44,5 @@ if ( ! file_exists( $dcb_autoload ) ) {
 
 require $dcb_autoload;
 
+register_activation_hook( __FILE__, array( \DCB\Plugin::class, 'activate' ) );
 add_action( 'plugins_loaded', array( \DCB\Plugin::class, 'boot' ) );

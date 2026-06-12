@@ -5,6 +5,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-13
+
+### Added
+- Live progress streaming: `/chat` now answers as a Server-Sent Events stream — assistant text arrives token by token and tool steps show as status updates ("Writing your draft… 2,400 characters").
+- Conversation persistence: conversations and messages are stored in custom tables; previous conversations can be resumed from a picker on the chat page.
+- Audit log: every AI tool invocation is recorded (user, conversation, tool, post, detail).
+- `dcb_use_chat` capability gates the chat UI and REST routes; role checkboxes in Settings control who gets it (administrators always do).
+- PHPCS with the WordPress Coding Standards ruleset (`phpcs.xml.dist`); codebase passes clean.
+
+### Changed
+- The browser no longer round-trips Claude message history; the client sends only `{conversation_id, message}` and the server owns state.
+
 ### Added
 - Project planning documents: README, architecture, roadmap, rules, versioning policy (2026-06-13).
 - Working prototype (vertical slice, 2026-06-13):

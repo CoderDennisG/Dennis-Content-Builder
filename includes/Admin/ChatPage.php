@@ -22,7 +22,7 @@ final class ChatPage {
 		add_menu_page(
 			__( 'Content Builder', 'dennis-content-builder' ),
 			__( 'Content Builder', 'dennis-content-builder' ),
-			'edit_posts',
+			\DCB\Support\Capabilities::USE_CHAT,
 			self::SLUG,
 			array( $this, 'render' ),
 			'dashicons-format-chat',
@@ -42,27 +42,31 @@ final class ChatPage {
 			'dcb-chat',
 			'dcbChat',
 			array(
-				'restUrl'   => esc_url_raw( rest_url( 'dcb/v1/chat' ) ),
-				'nonce'     => wp_create_nonce( 'wp_rest' ),
-				'hasKey'    => '' !== Plugin::settings()['api_key'],
-				'settings'  => esc_url_raw( admin_url( 'admin.php?page=dcb-settings' ) ),
-				'i18n'      => array(
+				'chatUrl'          => esc_url_raw( rest_url( 'dcb/v1/chat' ) ),
+				'conversationsUrl' => esc_url_raw( rest_url( 'dcb/v1/conversations' ) ),
+				'nonce'            => wp_create_nonce( 'wp_rest' ),
+				'hasKey'           => '' !== Plugin::settings()['api_key'],
+				'settings'         => esc_url_raw( admin_url( 'admin.php?page=dcb-settings' ) ),
+				'i18n'             => array(
 					'placeholder' => __( 'Describe the page you want, or ask me to edit an existing one…', 'dennis-content-builder' ),
 					'send'        => __( 'Send', 'dennis-content-builder' ),
-					'thinking'    => __( 'Working on it…', 'dennis-content-builder' ),
+					'thinking'    => __( 'Thinking…', 'dennis-content-builder' ),
+					'composing'   => __( 'Writing… %s characters', 'dennis-content-builder' ),
 					'editDraft'   => __( 'Open in editor', 'dennis-content-builder' ),
 					'preview'     => __( 'Preview', 'dennis-content-builder' ),
 					'created'     => __( 'Draft created', 'dennis-content-builder' ),
 					'updated'     => __( 'Content updated', 'dennis-content-builder' ),
 					'noKey'       => __( 'No API key configured yet. Add one in Settings first.', 'dennis-content-builder' ),
 					'error'       => __( 'Something went wrong:', 'dennis-content-builder' ),
+					'newChat'     => __( 'New conversation', 'dennis-content-builder' ),
+					'history'     => __( 'Previous conversations…', 'dennis-content-builder' ),
 				),
 			)
 		);
 	}
 
 	public function render(): void {
-		if ( ! current_user_can( 'edit_posts' ) ) {
+		if ( ! current_user_can( \DCB\Support\Capabilities::USE_CHAT ) ) {
 			return;
 		}
 		?>
@@ -71,6 +75,10 @@ final class ChatPage {
 			<p class="description">
 				<?php esc_html_e( 'Chat with AI to create pages and posts. Everything is saved as a draft for you to review — nothing goes live without you.', 'dennis-content-builder' ); ?>
 			</p>
+			<div id="dcb-toolbar">
+				<button type="button" class="button" id="dcb-new-chat"></button>
+				<select id="dcb-history"></select>
+			</div>
 			<div id="dcb-chat-app">
 				<div id="dcb-messages" aria-live="polite"></div>
 				<form id="dcb-form">

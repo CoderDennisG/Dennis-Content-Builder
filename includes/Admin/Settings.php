@@ -55,6 +55,12 @@ final class Settings {
 			$model = 'claude-opus-4-8';
 		}
 
+		// Role checkboxes sync the capability directly; they are not
+		// stored in the option. Idempotent, so the double-run quirk of
+		// sanitize callbacks is harmless.
+		$roles = array_map( 'sanitize_key', (array) ( $input['chat_roles'] ?? array() ) );
+		\DCB\Support\Capabilities::sync_roles( $roles );
+
 		return array(
 			'api_key' => $api_key,
 			'model'   => $model,
@@ -107,6 +113,31 @@ final class Settings {
 									</option>
 								<?php endforeach; ?>
 							</select>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Who can use the chat', 'dennis-content-builder' ); ?></th>
+						<td>
+							<?php
+							$enabled = \DCB\Support\Capabilities::roles_with_cap();
+							foreach ( get_editable_roles() as $role_key => $role_info ) :
+								$is_admin = 'administrator' === $role_key;
+								?>
+								<label style="display:block;margin-bottom:4px;">
+									<input type="checkbox"
+										name="<?php echo esc_attr( Plugin::OPTION ); ?>[chat_roles][]"
+										value="<?php echo esc_attr( $role_key ); ?>"
+										<?php checked( $is_admin || in_array( $role_key, $enabled, true ) ); ?>
+										<?php disabled( $is_admin ); ?> />
+									<?php echo esc_html( translate_user_role( $role_info['name'] ) ); ?>
+									<?php if ( $is_admin ) : ?>
+										<em><?php esc_html_e( '(always)', 'dennis-content-builder' ); ?></em>
+									<?php endif; ?>
+								</label>
+							<?php endforeach; ?>
+							<p class="description">
+								<?php esc_html_e( 'Checked roles can open the Content Builder chat. Editing rights are still enforced per page on top of this.', 'dennis-content-builder' ); ?>
+							</p>
 						</td>
 					</tr>
 				</table>

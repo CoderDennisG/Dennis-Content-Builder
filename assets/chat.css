@@ -45,9 +45,20 @@
 	border-bottom-left-radius: 4px;
 }
 
-.dcb-thinking {
+.dcb-status {
 	opacity: 0.65;
 	font-style: italic;
+}
+
+#dcb-toolbar {
+	margin-top: 12px;
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+#dcb-history {
+	max-width: 320px;
 }
 
 .dcb-notice {

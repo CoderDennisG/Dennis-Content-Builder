@@ -4,97 +4,212 @@ declare(strict_types=1);
 namespace DCB\Ai;
 
 use Anthropic\Client;
+use Anthropic\Messages\InputJSONDelta;
+use Anthropic\Messages\RawContentBlockDeltaEvent;
+use Anthropic\Messages\RawContentBlockStartEvent;
+use Anthropic\Messages\RawMessageDeltaEvent;
+use Anthropic\Messages\TextDelta;
 use Anthropic\Messages\ToolUseBlock;
+use DCB\Content\Conversations;
 use DCB\Plugin;
 
 /**
- * Runs the Claude tool-use loop server-side.
+ * Runs the Claude tool-use loop server-side, streaming progress to an
+ * emitter callback as it goes.
  *
- * The browser sends plain-array message history; we run the loop until
- * Claude stops calling tools, then hand back the updated history, the
- * displayable reply, and any content actions (created/updated drafts).
+ * Emitted events (type, data):
+ *  text          {delta}                 — assistant reply text, live
+ *  tool_start    {name, label}           — Claude began composing a tool call
+ *  tool_progress {name, chars}           — tool input growing (throttled)
+ *  tool_done     {name}                  — tool executed
+ *  action        {action, post_id, ...}  — a draft was created/updated
  */
 final class Orchestrator {
 
 	private const MAX_ITERATIONS = 15;
 	private const MAX_TOKENS     = 8192;
 
+	/** @var callable */
+	private $emit;
+
+	public function __construct( ?callable $emit = null ) {
+		$this->emit = $emit ?? static function ( string $type, array $data ): void {};
+	}
+
 	/**
-	 * @param array $messages Plain message arrays from the client.
-	 * @return array{reply:string, messages:array, actions:array}
+	 * Run one user turn within a persisted conversation.
+	 *
+	 * @return array{reply:string, actions:array}
 	 */
-	public function run( array $messages ): array {
+	public function run( int $conversation_id, int $user_id ): array {
 		$settings = Plugin::settings();
 
 		if ( '' === $settings['api_key'] ) {
-			throw new \RuntimeException( __( 'No API key configured. Add one under Content Builder → Settings.', 'dennis-content-builder' ) );
+			throw new \RuntimeException( esc_html__( 'No API key configured. Add one under Content Builder → Settings.', 'dennis-content-builder' ) );
 		}
 
-		$client = new Client( apiKey: $settings['api_key'] );
-		$tools  = Tools::definitions();
-		$runner = new Tools();
-		$reply  = '';
+		$client   = new Client( apiKey: $settings['api_key'] );
+		$tools    = Tools::definitions();
+		$runner   = new Tools(
+			function ( string $tool, int $post_id, string $detail ) use ( $conversation_id, $user_id ): void {
+				Conversations::audit( $user_id, $conversation_id, $tool, $post_id, $detail );
+			}
+		);
+		$messages = Conversations::messages_for_api( $conversation_id );
+		$reply    = '';
 
 		for ( $i = 0; $i < self::MAX_ITERATIONS; $i++ ) {
-			$response = $client->messages->create(
-				model: $settings['model'],
-				maxTokens: self::MAX_TOKENS,
-				system: $this->system_prompt(),
-				tools: $tools,
-				messages: $messages,
+			$turn = $this->stream_one_turn( $client, $settings['model'], $tools, $messages );
+
+			Conversations::append( $conversation_id, 'assistant', $turn['content'] );
+			$messages[] = array(
+				'role'    => 'assistant',
+				'content' => $turn['content'],
 			);
 
-			// Rebuild assistant content as plain arrays so history can
-			// round-trip through the browser as JSON.
-			$assistant_content = array();
-			$tool_uses         = array();
-
-			foreach ( $response->content as $block ) {
-				if ( 'text' === $block->type ) {
-					$assistant_content[] = array(
-						'type' => 'text',
-						'text' => $block->text,
-					);
-					$reply              .= ( '' !== $reply ? "\n\n" : '' ) . $block->text;
-				} elseif ( $block instanceof ToolUseBlock ) {
-					$assistant_content[] = array(
-						'type'  => 'tool_use',
-						'id'    => $block->id,
-						'name'  => $block->name,
-						'input' => $block->input,
-					);
-					$tool_uses[]         = $block;
+			foreach ( $turn['content'] as $block ) {
+				if ( 'text' === $block['type'] ) {
+					$reply .= ( '' !== $reply ? "\n\n" : '' ) . $block['text'];
 				}
 			}
 
-			$messages[] = array(
-				'role'    => 'assistant',
-				'content' => $assistant_content,
-			);
-
-			if ( 'tool_use' !== $response->stopReason || ! $tool_uses ) {
+			if ( 'tool_use' !== $turn['stop_reason'] || ! $turn['tool_uses'] ) {
 				break;
 			}
 
-			$results = array();
-			foreach ( $tool_uses as $block ) {
+			$results        = array();
+			$actions_before = count( $runner->actions() );
+
+			foreach ( $turn['tool_uses'] as $tool_use ) {
+				$result    = $runner->execute( $tool_use['name'], $tool_use['input'] );
 				$results[] = array(
 					'type'      => 'tool_result',
-					'toolUseID' => $block->id,
-					'content'   => wp_json_encode( $runner->execute( $block->name, (array) $block->input ) ),
+					'toolUseID' => $tool_use['id'],
+					'content'   => wp_json_encode( $result ),
 				);
+				( $this->emit )( 'tool_done', array( 'name' => $tool_use['name'] ) );
 			}
 
-			$messages[] = array(
+			// Surface fresh draft cards to the UI immediately.
+			foreach ( array_slice( $runner->actions(), $actions_before ) as $action ) {
+				( $this->emit )( 'action', $action );
+			}
+
+			$tool_results = array(
 				'role'    => 'user',
 				'content' => $results,
 			);
+
+			Conversations::append( $conversation_id, 'user', $results );
+			$messages[] = $tool_results;
 		}
 
 		return array(
-			'reply'    => $reply,
-			'messages' => $messages,
-			'actions'  => $runner->actions(),
+			'reply'   => $reply,
+			'actions' => $runner->actions(),
+		);
+	}
+
+	/**
+	 * One streamed Anthropic request: forwards deltas to the emitter and
+	 * assembles the full assistant message as plain arrays.
+	 *
+	 * @return array{content:array, tool_uses:array, stop_reason:?string}
+	 */
+	private function stream_one_turn( Client $client, string $model, array $tools, array $messages ): array {
+		$stream = $client->messages->createStream(
+			model: $model,
+			maxTokens: self::MAX_TOKENS,
+			system: $this->system_prompt(),
+			tools: $tools,
+			messages: $messages,
+		);
+
+		$blocks      = array(); // index => assembling block.
+		$stop_reason = null;
+		$last_ping   = 0.0;
+
+		foreach ( $stream as $event ) {
+			if ( $event instanceof RawContentBlockStartEvent ) {
+				$cb = $event->contentBlock;
+
+				if ( $cb instanceof ToolUseBlock ) {
+					$blocks[ $event->index ] = array(
+						'kind' => 'tool_use',
+						'id'   => $cb->id,
+						'name' => $cb->name,
+						'json' => '',
+					);
+					( $this->emit )(
+						'tool_start',
+						array(
+							'name'  => $cb->name,
+							'label' => Tools::label( $cb->name ),
+						)
+					);
+				} elseif ( 'text' === $cb->type ) {
+					$blocks[ $event->index ] = array(
+						'kind' => 'text',
+						'text' => '',
+					);
+				} else {
+					$blocks[ $event->index ] = array( 'kind' => 'other' );
+				}
+			} elseif ( $event instanceof RawContentBlockDeltaEvent ) {
+				$delta = $event->delta;
+				$idx   = $event->index;
+
+				if ( $delta instanceof TextDelta && isset( $blocks[ $idx ] ) && 'text' === $blocks[ $idx ]['kind'] ) {
+					$blocks[ $idx ]['text'] .= $delta->text;
+					( $this->emit )( 'text', array( 'delta' => $delta->text ) );
+				} elseif ( $delta instanceof InputJSONDelta && isset( $blocks[ $idx ] ) && 'tool_use' === $blocks[ $idx ]['kind'] ) {
+					$blocks[ $idx ]['json'] .= $delta->partialJSON;
+
+					// Throttle progress pings to ~3/second.
+					$now = microtime( true );
+					if ( $now - $last_ping > 0.33 ) {
+						$last_ping = $now;
+						( $this->emit )(
+							'tool_progress',
+							array(
+								'name'  => $blocks[ $idx ]['name'],
+								'chars' => strlen( $blocks[ $idx ]['json'] ),
+							)
+						);
+					}
+				}
+			} elseif ( $event instanceof RawMessageDeltaEvent ) {
+				$stop_reason = $event->delta->stopReason ?? $stop_reason;
+			}
+		}
+
+		$content   = array();
+		$tool_uses = array();
+
+		foreach ( $blocks as $block ) {
+			if ( 'text' === $block['kind'] && '' !== $block['text'] ) {
+				$content[] = array(
+					'type' => 'text',
+					'text' => $block['text'],
+				);
+			} elseif ( 'tool_use' === $block['kind'] ) {
+				$input    = json_decode( '' !== $block['json'] ? $block['json'] : '{}', true );
+				$tool_use = array(
+					'type'  => 'tool_use',
+					'id'    => $block['id'],
+					'name'  => $block['name'],
+					'input' => is_array( $input ) ? $input : array(),
+				);
+
+				$content[]   = $tool_use;
+				$tool_uses[] = $tool_use;
+			}
+		}
+
+		return array(
+			'content'     => $content,
+			'tool_uses'   => $tool_uses,
+			'stop_reason' => is_object( $stop_reason ) ? ( $stop_reason->value ?? null ) : $stop_reason,
 		);
 	}
 
@@ -105,7 +220,7 @@ final class Orchestrator {
 		$settings = Plugin::settings();
 
 		if ( '' === $settings['api_key'] ) {
-			throw new \RuntimeException( __( 'No API key saved yet.', 'dennis-content-builder' ) );
+			throw new \RuntimeException( esc_html__( 'No API key saved yet.', 'dennis-content-builder' ) );
 		}
 
 		$client   = new Client( apiKey: $settings['api_key'] );

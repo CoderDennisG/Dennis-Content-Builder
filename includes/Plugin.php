@@ -6,6 +6,8 @@ namespace DCB;
 use DCB\Admin\ChatPage;
 use DCB\Admin\Settings;
 use DCB\Api\Routes;
+use DCB\Support\Capabilities;
+use DCB\Support\Schema;
 
 /**
  * Plugin bootstrap: wires hooks. No business logic here.
@@ -21,6 +23,24 @@ final class Plugin {
 		( new ChatPage() )->register();
 		( new Settings() )->register();
 		( new Routes() )->register();
+
+		// Upgrades (plugin replaced without re-activation): keep schema
+		// and capabilities current.
+		add_action( 'admin_init', array( self::class, 'maybe_upgrade' ) );
+	}
+
+	/** Activation hook target. */
+	public static function activate(): void {
+		Schema::install();
+		Capabilities::install();
+	}
+
+	public static function maybe_upgrade(): void {
+		if ( get_option( 'dcb_version' ) !== DCB_VERSION ) {
+			Schema::install();
+			Capabilities::install();
+			update_option( 'dcb_version', DCB_VERSION, false );
+		}
 	}
 
 	/**
