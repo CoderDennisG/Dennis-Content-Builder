@@ -11,7 +11,8 @@ use DCB\Plugin;
 final class Settings {
 
 	public function register(): void {
-		add_action( 'admin_menu', array( $this, 'add_menu' ) );
+		// Priority 11: guarantees the parent menu (priority 10) exists first.
+		add_action( 'admin_menu', array( $this, 'add_menu' ), 11 );
 		add_action( 'admin_init', array( $this, 'register_setting' ) );
 	}
 

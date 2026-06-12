@@ -15,8 +15,11 @@ final class Plugin {
 	public const OPTION = 'dcb_settings';
 
 	public static function boot(): void {
-		( new Settings() )->register();
+		// ChatPage owns the top-level menu and must register before the
+		// Settings submenu, or WP files the submenu under a wrong hook
+		// and its sidebar link 404s.
 		( new ChatPage() )->register();
+		( new Settings() )->register();
 		( new Routes() )->register();
 	}
 
