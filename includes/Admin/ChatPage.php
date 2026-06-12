@@ -16,6 +16,7 @@ final class ChatPage {
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'add_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
+		add_action( 'enqueue_block_editor_assets', array( $this, 'editor_assets' ) );
 	}
 
 	public function add_menu(): void {
@@ -35,6 +36,27 @@ final class ChatPage {
 			return;
 		}
 
+		$this->enqueue_chat_core();
+	}
+
+	/** Same chat, inside the block editor as a sidebar. */
+	public function editor_assets(): void {
+		if ( ! current_user_can( \DCB\Support\Capabilities::USE_CHAT ) ) {
+			return;
+		}
+
+		$this->enqueue_chat_core();
+
+		wp_enqueue_script(
+			'dcb-editor',
+			DCB_PLUGIN_URL . 'assets/editor.js',
+			array( 'dcb-chat', 'wp-plugins', 'wp-editor', 'wp-element', 'wp-data', 'wp-blocks', 'wp-api-fetch', 'wp-i18n' ),
+			DCB_VERSION,
+			true
+		);
+	}
+
+	private function enqueue_chat_core(): void {
 		wp_enqueue_style( 'dcb-chat', DCB_PLUGIN_URL . 'assets/chat.css', array(), DCB_VERSION );
 		wp_enqueue_script( 'dcb-chat', DCB_PLUGIN_URL . 'assets/chat.js', array(), DCB_VERSION, true );
 
@@ -75,17 +97,7 @@ final class ChatPage {
 			<p class="description">
 				<?php esc_html_e( 'Chat with AI to create pages and posts. Everything is saved as a draft for you to review — nothing goes live without you.', 'dennis-content-builder' ); ?>
 			</p>
-			<div id="dcb-toolbar">
-				<button type="button" class="button" id="dcb-new-chat"></button>
-				<select id="dcb-history"></select>
-			</div>
-			<div id="dcb-chat-app">
-				<div id="dcb-messages" aria-live="polite"></div>
-				<form id="dcb-form">
-					<textarea id="dcb-input" rows="3" required></textarea>
-					<button type="submit" class="button button-primary" id="dcb-send"></button>
-				</form>
-			</div>
+			<div id="dcb-chat-app"></div>
 		</div>
 		<?php
 	}

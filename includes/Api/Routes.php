@@ -76,6 +76,7 @@ final class Routes {
 		$user_id         = get_current_user_id();
 		$text            = trim( (string) $request->get_param( 'message' ) );
 		$conversation_id = absint( $request->get_param( 'conversation_id' ) ?? 0 );
+		$post_id         = absint( $request->get_param( 'post_id' ) ?? 0 );
 
 		$this->start_stream();
 
@@ -89,12 +90,28 @@ final class Routes {
 			exit;
 		}
 
+		// Post scope (editor sidebar): validate before trusting.
+		$post_context = null;
+		if ( $post_id ) {
+			$post = get_post( $post_id );
+			if ( ! $post || ! current_user_can( 'edit_post', $post_id ) ) {
+				$this->send( 'error', array( 'message' => __( 'You cannot edit this content.', 'dennis-content-builder' ) ) );
+				exit;
+			}
+			$post_context = array(
+				'id'     => $post->ID,
+				'type'   => $post->post_type,
+				'title'  => $post->post_title,
+				'status' => $post->post_status,
+			);
+		}
+
 		if ( function_exists( 'set_time_limit' ) ) {
 			set_time_limit( 300 );
 		}
 
 		if ( ! $conversation_id ) {
-			$conversation_id = Conversations::create( $user_id, $text );
+			$conversation_id = Conversations::create( $user_id, $text, $post_id );
 		}
 
 		Conversations::append( $conversation_id, 'user', $text );
@@ -107,7 +124,7 @@ final class Routes {
 				}
 			);
 
-			$result = $orchestrator->run( $conversation_id, $user_id );
+			$result = $orchestrator->run( $conversation_id, $user_id, $post_context );
 
 			$this->send(
 				'done',
@@ -124,8 +141,16 @@ final class Routes {
 	}
 
 	public function conversations( WP_REST_Request $request ): WP_REST_Response {
+		$post_id = $request->get_param( 'post_id' );
+
 		return new WP_REST_Response(
-			array( 'conversations' => Conversations::recent( get_current_user_id() ) ),
+			array(
+				'conversations' => Conversations::recent(
+					get_current_user_id(),
+					15,
+					null === $post_id ? null : absint( $post_id )
+				),
+			),
 			200
 		);
 	}

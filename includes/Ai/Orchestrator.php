@@ -41,7 +41,7 @@ final class Orchestrator {
 	 *
 	 * @return array{reply:string, actions:array}
 	 */
-	public function run( int $conversation_id, int $user_id ): array {
+	public function run( int $conversation_id, int $user_id, ?array $post_context = null ): array {
 		$settings = Plugin::settings();
 
 		if ( '' === $settings['api_key'] ) {
@@ -58,8 +58,10 @@ final class Orchestrator {
 		$messages = Conversations::messages_for_api( $conversation_id );
 		$reply    = '';
 
+		$system = $this->system_prompt( $post_context );
+
 		for ( $i = 0; $i < self::MAX_ITERATIONS; $i++ ) {
-			$turn = $this->stream_one_turn( $client, $settings['model'], $tools, $messages );
+			$turn = $this->stream_one_turn( $client, $settings['model'], $tools, $messages, $system );
 
 			Conversations::append( $conversation_id, 'assistant', $turn['content'] );
 			$messages[] = array(
@@ -116,11 +118,11 @@ final class Orchestrator {
 	 *
 	 * @return array{content:array, tool_uses:array, stop_reason:?string}
 	 */
-	private function stream_one_turn( Client $client, string $model, array $tools, array $messages ): array {
+	private function stream_one_turn( Client $client, string $model, array $tools, array $messages, string $system ): array {
 		$stream = $client->messages->createStream(
 			model: $model,
 			maxTokens: self::MAX_TOKENS,
-			system: $this->system_prompt(),
+			system: $system,
 			tools: $tools,
 			messages: $messages,
 		);
@@ -238,10 +240,22 @@ final class Orchestrator {
 		return $response->model;
 	}
 
-	private function system_prompt(): string {
+	private function system_prompt( ?array $post_context = null ): string {
 		$site = get_bloginfo( 'name' );
 
-		return <<<PROMPT
+		$context = '';
+		if ( $post_context ) {
+			$context = sprintf(
+				"\n# Current context\nThe user has the %s \"%s\" (id %d, status %s) open in the editor right now. Treat their requests as referring to this %s unless they clearly say otherwise. Read it with read_content before changing anything. They see your edits appear in their editor immediately.\n",
+				$post_context['type'],
+				$post_context['title'],
+				$post_context['id'],
+				$post_context['status'],
+				$post_context['type']
+			);
+		}
+
+		return $context . <<<PROMPT
 You are the content assistant inside the WordPress site "{$site}". You build and edit pages and posts through the provided tools. Users are often non-technical — be friendly, concise, and never use jargon like "block markup" or "serialize".
 
 # How content works

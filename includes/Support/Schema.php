@@ -9,7 +9,7 @@ namespace DCB\Support;
  */
 final class Schema {
 
-	private const DB_VERSION = 1;
+	private const DB_VERSION = 2;
 
 	public static function conversations_table(): string {
 		global $wpdb;
@@ -45,11 +45,13 @@ final class Schema {
 			"CREATE TABLE {$conversations} (
 				id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 				user_id BIGINT UNSIGNED NOT NULL,
+				post_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
 				title VARCHAR(200) NOT NULL DEFAULT '',
 				created_at DATETIME NOT NULL,
 				updated_at DATETIME NOT NULL,
 				PRIMARY KEY  (id),
-				KEY user_id (user_id)
+				KEY user_id (user_id),
+				KEY post_id (post_id)
 			) {$charset};"
 		);
 

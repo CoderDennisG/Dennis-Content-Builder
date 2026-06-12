@@ -13,7 +13,7 @@ use DCB\Support\Schema;
 final class Conversations {
 
 	/** Create a conversation for a user, titled from the first message. */
-	public static function create( int $user_id, string $first_message ): int {
+	public static function create( int $user_id, string $first_message, int $post_id = 0 ): int {
 		global $wpdb;
 
 		$title = wp_html_excerpt( $first_message, 60, '…' );
@@ -23,11 +23,12 @@ final class Conversations {
 			Schema::conversations_table(),
 			array(
 				'user_id'    => $user_id,
+				'post_id'    => $post_id,
 				'title'      => $title,
 				'created_at' => $now,
 				'updated_at' => $now,
 			),
-			array( '%d', '%s', '%s', '%s' )
+			array( '%d', '%d', '%s', '%s', '%s' )
 		);
 
 		return (int) $wpdb->insert_id;
@@ -50,16 +51,34 @@ final class Conversations {
 		return $row ? $row : null;
 	}
 
-	/** Recent conversations for the picker. */
-	public static function recent( int $user_id, int $limit = 15 ): array {
+	/**
+	 * Recent conversations for the picker.
+	 *
+	 * @param int|null $post_id Null: all conversations. Int: only ones
+	 *                          scoped to that post (the editor sidebar).
+	 */
+	public static function recent( int $user_id, int $limit = 15, ?int $post_id = null ): array {
 		global $wpdb;
 
 		$table = Schema::conversations_table();
+
+		if ( null === $post_id ) {
+			return $wpdb->get_results(
+				$wpdb->prepare(
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted helper.
+					"SELECT id, title, updated_at FROM {$table} WHERE user_id = %d ORDER BY updated_at DESC LIMIT %d",
+					$user_id,
+					$limit
+				)
+			);
+		}
+
 		return $wpdb->get_results(
 			$wpdb->prepare(
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from trusted helper.
-				"SELECT id, title, updated_at FROM {$table} WHERE user_id = %d ORDER BY updated_at DESC LIMIT %d",
+				"SELECT id, title, updated_at FROM {$table} WHERE user_id = %d AND post_id = %d ORDER BY updated_at DESC LIMIT %d",
 				$user_id,
+				$post_id,
 				$limit
 			)
 		);

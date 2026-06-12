@@ -5,6 +5,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-13
+
+### Added
+- Gutenberg editor sidebar: the chat opens next to the post/page you're editing (pin icon in the editor toolbar), scoped to that post — "make the intro shorter" needs no explanation of which page.
+- Live canvas refresh: when the AI updates the open post, the editor content reloads in place with a snackbar notice — review and save.
+- Conversations are scoped per post in the sidebar (each page has its own history); the admin chat page still shows everything.
+- Unsaved-changes warning before sending from the sidebar (the AI reads the last saved version).
+
+### Changed
+- Chat UI refactored into a reusable factory (`dcbCreateChat`) shared by the admin page and the sidebar; styles are class-based with a compact sidebar variant.
+
 ## [0.2.0] - 2026-06-13
 
 ### Added
