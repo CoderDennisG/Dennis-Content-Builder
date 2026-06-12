@@ -1,0 +1,19 @@
+{
+    "name": "dennis/dennis-content-builder",
+    "description": "Build and edit WordPress content by chatting with AI.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.1",
+        "anthropic-ai/sdk": "0.7"
+    },
+    "autoload": {
+        "psr-4": {
+            "DCB\\": "includes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}

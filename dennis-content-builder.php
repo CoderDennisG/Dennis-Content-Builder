@@ -1,22 +1,16 @@
 <?php
-
 /**
- * The plugin bootstrap file
+ * Dennis Content Builder
  *
- * This file is read by WordPress to generate the plugin information in the plugin
- * admin area. This file also includes all of the dependencies used by the plugin,
- * registers the activation and deactivation functions, and defines a function
- * that starts the plugin.
- *
- * @link              https://myfreelance101.com
- * @since             1.0.0
- * @package           Dennis_Content_Builder
+ * @package           DCB
  *
  * @wordpress-plugin
  * Plugin Name:       Dennis Content Builder
  * Plugin URI:        https://myfreelance101.com
- * Description:       This is a description of the plugin.
- * Version:           1.0.0
+ * Description:       Build and edit WordPress content by chatting with AI. Gutenberg-native, drafts only.
+ * Version:           0.1.0
+ * Requires at least: 6.6
+ * Requires PHP:      8.1
  * Author:            Dennis Gutierrez
  * Author URI:        https://myfreelance101.com/
  * License:           GPL-2.0+
@@ -25,58 +19,29 @@
  * Domain Path:       /languages
  */
 
-// If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-/**
- * Currently plugin version.
- * Start at version 1.0.0 and use SemVer - https://semver.org
- * Rename this for your plugin and update it as you release new versions.
- */
-define( 'DENNIS_CONTENT_BUILDER_VERSION', '1.0.0' );
+define( 'DCB_VERSION', '0.1.0' );
+define( 'DCB_PLUGIN_FILE', __FILE__ );
+define( 'DCB_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'DCB_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
-/**
- * The code that runs during plugin activation.
- * This action is documented in includes/class-dennis-content-builder-activator.php
- */
-function activate_dennis_content_builder() {
-	require_once plugin_dir_path( __FILE__ ) . 'includes/class-dennis-content-builder-activator.php';
-	Dennis_Content_Builder_Activator::activate();
+$dcb_autoload = DCB_PLUGIN_DIR . 'vendor/autoload.php';
+
+if ( ! file_exists( $dcb_autoload ) ) {
+	add_action(
+		'admin_notices',
+		function () {
+			echo '<div class="notice notice-error"><p>';
+			esc_html_e( 'Dennis Content Builder: vendor/autoload.php is missing. Run "composer install" inside the plugin directory.', 'dennis-content-builder' );
+			echo '</p></div>';
+		}
+	);
+	return;
 }
 
-/**
- * The code that runs during plugin deactivation.
- * This action is documented in includes/class-dennis-content-builder-deactivator.php
- */
-function deactivate_dennis_content_builder() {
-	require_once plugin_dir_path( __FILE__ ) . 'includes/class-dennis-content-builder-deactivator.php';
-	Dennis_Content_Builder_Deactivator::deactivate();
-}
+require $dcb_autoload;
 
-register_activation_hook( __FILE__, 'activate_dennis_content_builder' );
-register_deactivation_hook( __FILE__, 'deactivate_dennis_content_builder' );
-
-/**
- * The core plugin class that is used to define internationalization,
- * admin-specific hooks, and public-facing site hooks.
- */
-require plugin_dir_path( __FILE__ ) . 'includes/class-dennis-content-builder.php';
-
-/**
- * Begins execution of the plugin.
- *
- * Since everything within the plugin is registered via hooks,
- * then kicking off the plugin from this point in the file does
- * not affect the page life cycle.
- *
- * @since    1.0.0
- */
-function run_dennis_content_builder() {
-
-	$plugin = new Dennis_Content_Builder();
-	$plugin->run();
-
-}
-run_dennis_content_builder();
+add_action( 'plugins_loaded', array( \DCB\Plugin::class, 'boot' ) );
