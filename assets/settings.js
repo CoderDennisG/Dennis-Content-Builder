@@ -46,6 +46,29 @@
 		const [ editing, setEditing ] = useState( null );
 		const [ running, setRunning ] = useState( false );
 		const [ runResult, setRunResult ] = useState( null );
+		const [ fieldDefs, setFieldDefs ] = useState( {} );
+
+		// Lazy-load the discovered field list when a type's popup opens.
+		useEffect( function () {
+			if ( ! editing || fieldDefs[ editing ] !== undefined ) {
+				return;
+			}
+			apiFetch( { path: '/dcb/v1/fields?post_type=' + encodeURIComponent( editing ) } )
+				.then( function ( res ) {
+					setFieldDefs( function ( prev ) {
+						const next = Object.assign( {}, prev );
+						next[ editing ] = res.fields || [];
+						return next;
+					} );
+				} )
+				.catch( function () {
+					setFieldDefs( function ( prev ) {
+						const next = Object.assign( {}, prev );
+						next[ editing ] = [];
+						return next;
+					} );
+				} );
+		}, [ editing ] );
 
 		useEffect( function () {
 			apiFetch( { path: '/dcb/v1/settings' } )
@@ -301,6 +324,56 @@
 			setRunResult( null );
 		}
 
+		function toggleField( slug, name, on ) {
+			const cur = ( profiles[ slug ] && profiles[ slug ].fields ) || [];
+			const next = on
+				? ( cur.indexOf( name ) === -1 ? cur.concat( name ) : cur )
+				: cur.filter( function ( x ) {
+					return x !== name;
+				} );
+			patchProfile( slug, { fields: next } );
+		}
+
+		function fieldsSection( pt, profile ) {
+			const defs = fieldDefs[ pt.slug ];
+			if ( defs === undefined ) {
+				return e( Spinner );
+			}
+			if ( ! defs.length ) {
+				return e( 'p', { className: 'dcb-muted' }, __( 'No custom fields found for this type.', 'dennis-content-builder' ) );
+			}
+
+			const allowed = ( profile.fields ) || [];
+
+			return e( 'div', { className: 'dcb-field-list' },
+				defs.map( function ( f, idx ) {
+					const ro = ! f.writable;
+					if ( f.depth > 0 ) {
+						// Nested sub-field: shown for context, governed by its parent.
+						return e( 'div', {
+							key: idx,
+							className: 'dcb-field-sub',
+							style: { marginLeft: ( f.depth * 16 ) + 'px' },
+						}, '↳ ' + f.label + ' ' + typeTag( f.type, ro ) );
+					}
+					return e( 'div', { key: idx, className: 'dcb-field-top' },
+						e( CheckboxControl, Object.assign( {}, noMargin, {
+							label: f.label,
+							checked: allowed.indexOf( f.name ) !== -1,
+							onChange: function ( checked ) {
+								toggleField( pt.slug, f.name, checked );
+							},
+						} ) ),
+						e( 'span', { className: 'dcb-field-tag' }, typeTag( f.type, ro ) )
+					);
+				} )
+			);
+		}
+
+		function typeTag( type, readOnly ) {
+			return readOnly ? type + ' · read-only' : type;
+		}
+
 		function fmt( ts ) {
 			return ts ? new Date( ts * 1000 ).toLocaleString() : '—';
 		}
@@ -331,9 +404,12 @@
 						patchProfile( editing, { instructions: value } );
 					},
 				} ) ),
-				! pt.block_based && e( 'p', { className: 'dcb-muted' },
-					__( 'This type stores custom fields. Field editing arrives in a later version; for now the assistant can still create and edit any block content it has.', 'dennis-content-builder' )
-				),
+				e( 'hr', { className: 'dcb-sep' } ),
+
+				// Custom fields
+				e( 'p', { className: 'dcb-subhead' }, __( 'Custom fields', 'dennis-content-builder' ) ),
+				e( 'p', { className: 'dcb-muted' }, __( 'Tick the fields the assistant may read. Text, number, choice, true/false and date fields can also be written; complex fields (repeater, group, flexible content, image, relationship) are read-only for now.', 'dennis-content-builder' ) ),
+				fieldsSection( pt, profile ),
 
 				e( 'hr', { className: 'dcb-sep' } ),
 

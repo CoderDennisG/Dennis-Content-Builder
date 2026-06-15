@@ -6,6 +6,7 @@ namespace DCB\Api;
 use DCB\Ai\Orchestrator;
 use DCB\Ai\Scheduler;
 use DCB\Content\Conversations;
+use DCB\Content\Fields;
 use DCB\Content\Profiles;
 use DCB\Plugin;
 use DCB\Support\Capabilities;
@@ -96,6 +97,24 @@ final class Routes {
 				'callback'            => array( $this, 'run_schedule' ),
 				'permission_callback' => static fn() => current_user_can( 'manage_options' ),
 			)
+		);
+
+		register_rest_route(
+			'dcb/v1',
+			'/fields',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'fields' ),
+				'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+			)
+		);
+	}
+
+	public function fields( WP_REST_Request $request ): WP_REST_Response {
+		$post_type = sanitize_key( (string) $request->get_param( 'post_type' ) );
+		return new WP_REST_Response(
+			array( 'fields' => Fields::ui_list( $post_type ) ),
+			200
 		);
 	}
 

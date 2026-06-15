@@ -45,6 +45,10 @@ final class Tools {
 				return __( 'Applying the changes…', 'dennis-content-builder' );
 			case 'search_media':
 				return __( 'Searching the media library…', 'dennis-content-builder' );
+			case 'read_fields':
+				return __( 'Reading custom fields…', 'dennis-content-builder' );
+			case 'update_fields':
+				return __( 'Updating custom fields…', 'dennis-content-builder' );
 			default:
 				return __( 'Working…', 'dennis-content-builder' );
 		}
@@ -146,6 +150,35 @@ final class Tools {
 					'additionalProperties' => false,
 				),
 			),
+			array(
+				'name'        => 'read_fields',
+				'description' => 'Read a post\'s custom fields (ACF and registered meta) the admin has allowed for this type. Returns each field\'s schema (name, type, label, choices, nested sub-fields for repeaters/groups/flexible content) and its current value. Call this before update_fields.',
+				'inputSchema' => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'post_id' => array( 'type' => 'integer' ),
+					),
+					'required'             => array( 'post_id' ),
+					'additionalProperties' => false,
+				),
+			),
+			array(
+				'name'        => 'update_fields',
+				'description' => 'Set custom field values on a post. "fields" maps field name to value. Text, number, choice (use the exact choice value), true/false, and date fields can be written. Complex fields (repeater, group, flexible content, image, file, relationship) are currently read-only and will be reported as such. Prior values are backed up automatically.',
+				'inputSchema' => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'post_id' => array( 'type' => 'integer' ),
+						'fields'  => array(
+							'type'                 => 'object',
+							'description'          => 'Map of field name to new value.',
+							'additionalProperties' => true,
+						),
+					),
+					'required'             => array( 'post_id', 'fields' ),
+					'additionalProperties' => false,
+				),
+			),
 		);
 	}
 
@@ -179,6 +212,10 @@ final class Tools {
 					return $this->update_content( $input );
 				case 'search_media':
 					return $this->search_media( $input );
+				case 'read_fields':
+					return $this->read_fields( $input );
+				case 'update_fields':
+					return $this->update_fields( $input );
 				default:
 					return array( 'error' => "Unknown tool: {$name}" );
 			}
@@ -242,8 +279,8 @@ final class Tools {
 	}
 
 	private function create_draft( array $input ): array {
-		$type    = sanitize_key( (string) ( $input['post_type'] ?? 'page' ) );
-		$pt_obj  = get_post_type_object( $type );
+		$type   = sanitize_key( (string) ( $input['post_type'] ?? 'page' ) );
+		$pt_obj = get_post_type_object( $type );
 
 		if ( ! $pt_obj || ! \DCB\Content\Profiles::is_eligible( $type ) ) {
 			return array( 'error' => 'That content type is not available to the assistant.' );
@@ -368,5 +405,37 @@ final class Tools {
 		}
 
 		return array( 'images' => $items );
+	}
+
+	private function read_fields( array $input ): array {
+		$post = get_post( absint( $input['post_id'] ?? 0 ) );
+		if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
+			return array( 'error' => 'Post not found or not editable by this user.' );
+		}
+
+		$allowed = \DCB\Content\Profiles::allowed_fields( $post->post_type );
+		if ( ! $allowed ) {
+			return array(
+				'fields' => array(),
+				'note'   => 'No custom fields are enabled for this content type.',
+			);
+		}
+
+		return \DCB\Content\Fields::read( $post->ID, $post->post_type, $allowed );
+	}
+
+	private function update_fields( array $input ): array {
+		$post = get_post( absint( $input['post_id'] ?? 0 ) );
+		if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
+			return array( 'error' => 'Post not found or not editable by this user.' );
+		}
+
+		$allowed = \DCB\Content\Profiles::allowed_fields( $post->post_type );
+		$tree    = isset( $input['fields'] ) && is_array( $input['fields'] ) ? $input['fields'] : array();
+		if ( ! $allowed || ! $tree ) {
+			return array( 'error' => 'No writable fields supplied or none enabled for this type.' );
+		}
+
+		return \DCB\Content\Fields::write( $post->ID, $post->post_type, $allowed, $tree );
 	}
 }

@@ -94,7 +94,7 @@ final class Profiles {
 	 * A type's profile, merged with defaults. Block restrictions are
 	 * global (see allowed_blocks()), not part of the per-type profile.
 	 *
-	 * @return array{enabled:bool, instructions:string, schedule:array}
+	 * @return array{enabled:bool, instructions:string, schedule:array, fields:array}
 	 */
 	public static function get( string $type ): array {
 		$all   = self::all();
@@ -106,6 +106,9 @@ final class Profiles {
 				? (bool) $saved['enabled']
 				: in_array( $type, self::DEFAULT_ENABLED, true ),
 			'instructions' => isset( $saved['instructions'] ) ? (string) $saved['instructions'] : '',
+			'fields'       => isset( $saved['fields'] ) && is_array( $saved['fields'] )
+				? array_values( array_map( 'strval', $saved['fields'] ) )
+				: array(),
 			'schedule'     => array(
 				'enabled'      => ! empty( $sched['enabled'] ),
 				'days'         => isset( $sched['days'] ) && is_array( $sched['days'] )
@@ -122,6 +125,11 @@ final class Profiles {
 
 	public static function schedule_for( string $type ): array {
 		return self::get( $type )['schedule'];
+	}
+
+	/** Top-level field names the AI may read/write for this type. */
+	public static function allowed_fields( string $type ): array {
+		return self::get( $type )['fields'];
 	}
 
 	/**
@@ -204,9 +212,12 @@ final class Profiles {
 			$days  = array_values( array_intersect( array_map( 'sanitize_key', (array) ( $sched['days'] ?? array() ) ), self::WEEKDAYS ) );
 			$time  = ( isset( $sched['time'] ) && preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', (string) $sched['time'] ) ) ? (string) $sched['time'] : '09:00';
 
+			$fields = array_values( array_map( 'sanitize_text_field', (array) ( $profile['fields'] ?? array() ) ) );
+
 			$clean[ $slug ] = array(
 				'enabled'      => ! empty( $profile['enabled'] ),
 				'instructions' => sanitize_textarea_field( (string) ( $profile['instructions'] ?? '' ) ),
+				'fields'       => $fields,
 				'schedule'     => array(
 					'enabled'      => ! empty( $sched['enabled'] ),
 					'days'         => $days,

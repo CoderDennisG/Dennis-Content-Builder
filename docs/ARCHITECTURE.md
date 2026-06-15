@@ -125,11 +125,19 @@ Per tier: Full-tier blocks get the complete `style` object; Attributes-tier bloc
 
 - **`enabled`** — eligibility. Disabled types get no sidebar and refuse creation/editing. Defaults: `page`, `post`.
 - **`instructions`** — writing guidance/persona injected into the system prompt. When a post is open the sidebar injects that one type's guidance; the standalone chat injects the catalogue of eligible types.
-- **`fields`** *(v0.5.0, not built)* — custom-field read/write per type. Field-based CPTs (ACF/meta) currently get block + guidance support only.
+- **`fields`** — top-level custom-field names (ACF + native meta) the AI may read/write for this type. See Custom fields below.
 
 **Allowed blocks are global, not per-type** (option `dcb_allowed_blocks`): a subset of the block catalogue, empty = all, applied to every post type. Enforced **structurally** in `Model::sanitize_elements()` (disallowed elements dropped recursively; `raw` exempt) via `Profiles::allowed_blocks()`, and surfaced once to the model in the system prompt — not merely prompted.
 
 Enforcement is at every entry point, not just the prompt: `list_content`/`read_content`/`create_draft`/`update_content` all check `Profiles::is_eligible()` and apply the global `Profiles::allowed_blocks()`, and capability checks use each post type object's own `cap`. Managed by `DCB\Content\Profiles`; edited from the settings page (Allowed Blocks + Post Types tabs).
+
+## Custom fields
+
+`DCB\Content\Fields` discovers, reads, and writes custom fields from **ACF** (`acf_get_field_groups`/`acf_get_fields`, written via `update_field`) and **native registered meta** (`get_registered_meta_keys`, written via `update_post_meta`). Both are guarded by `function_exists` so the plugin runs with either, both, or neither present.
+
+Schema is **recursive** — repeater/group sub-fields and flexible-content layouts are normalized into nested nodes — so the engine reads the full tree today. **Writing is phased:** a fixed `WRITABLE_ACF` set (text/textarea/wysiwyg/number/email/url/choice/true-false/date/color) plus native scalars are validated per type (enum-checked choices, sanitized values) and written; complex types (repeater, group, flexible content, image, file, relationship, post object) are returned read-only and refused on write with a message the model understands. The schema/value engine already handles the full tree, so enabling complex writes later is enablement, not a rebuild.
+
+Exposed to the AI only through the per-type allowlist (`Profiles::allowed_fields()`), via tools `read_fields` (schema + current values) and `update_fields` (validated write). Because WordPress revisions don't snapshot meta, `Fields::write()` backs up prior values to `_dcb_field_backup` before overwriting. Discovery for the settings checklist is served by `GET /dcb/v1/fields`.
 
 ## Scheduled auto-creation
 

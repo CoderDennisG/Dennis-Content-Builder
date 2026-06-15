@@ -5,7 +5,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
-## [0.5.0] - 2026-06-13
+## [0.6.0] - 2026-06-13
+
+### Added
+- Custom fields (ACF + native registered meta). The assistant can read and fill a post type's custom fields, scoped to an admin allowlist in the post-type popup.
+  - **Discovery** is recursive: ACF field groups (incl. nested repeater/group/flexible-content sub-fields and choices) plus `register_post_meta` keys, surfaced as a checklist with type badges.
+  - **Reading** covers the full field tree, including complex types, today.
+  - **Writing** is enabled for the reliable types this release — text, textarea, wysiwyg, number, email, url, select/radio/checkbox/button-group, true/false, date/time, color — validated per type (choices checked, values sanitized). Complex fields (repeater, group, flexible content, image, file, relationship, post object) are read-only for now and reported as such to the model.
+  - Two new AI tools: `read_fields` and `update_fields`. ACF values are written via `update_field`; native meta via `update_post_meta`.
+  - **Undo for meta:** prior field values are snapshotted to `_dcb_field_backup` before any write, since WordPress revisions don't cover meta.
+- New `dcb/v1/fields` endpoint backs the settings checklist.
+
+### Notes
+- Writing complex/nested field types (repeaters, flexible content) and setting media/relationship fields by searching existing items is the next phase — the schema engine already handles the full tree, so it's enablement, not a rebuild.
 
 ### Added
 - Scheduled auto-creation, per post type: pick specific weekdays and a time (e.g. Mon/Wed/Fri at 6:00 PM) in the type's popup, give it a standing brief, and the assistant creates a new item on that schedule. Uses precise self-rearming timed events in the site timezone (exact under a real server cron such as WP Engine).
