@@ -37,6 +37,7 @@
 		const [ model, setModel ] = useState( '' );
 		const [ roles, setRoles ] = useState( [] );
 		const [ profiles, setProfiles ] = useState( {} );
+		const [ allowedBlocks, setAllowedBlocks ] = useState( [] );
 		const [ saving, setSaving ] = useState( false );
 		const [ testing, setTesting ] = useState( false );
 		const [ notice, setNotice ] = useState( null );
@@ -49,6 +50,7 @@
 					setModel( payload.model );
 					setRoles( payload.roles || [] );
 					setProfiles( payload.profiles || {} );
+					setAllowedBlocks( payload.allowed_blocks || [] );
 				} )
 				.catch( function ( err ) {
 					setNotice( { status: 'error', text: err.message } );
@@ -65,13 +67,14 @@
 			apiFetch( {
 				path: '/dcb/v1/settings',
 				method: 'POST',
-				data: { model: model, api_key: apiKey, roles: roles, profiles: profiles },
+				data: { model: model, api_key: apiKey, roles: roles, profiles: profiles, allowed_blocks: allowedBlocks },
 			} )
 				.then( function ( payload ) {
 					setData( payload );
 					setModel( payload.model );
 					setRoles( payload.roles || [] );
 					setProfiles( payload.profiles || {} );
+					setAllowedBlocks( payload.allowed_blocks || [] );
 					setApiKey( '' );
 					setTestResult( null );
 					setNotice( { status: 'success', text: __( 'Settings saved.', 'dennis-content-builder' ) } );
@@ -190,6 +193,39 @@
 			);
 		}
 
+		// ---- Allowed Blocks tab (global) ----
+		function blocksTab() {
+			return e(
+				'div',
+				null,
+				e( 'p', { className: 'dcb-muted dcb-intro' }, __( 'Choose which blocks the assistant may use across all content. Leave everything unchecked to allow every block.', 'dennis-content-builder' ) ),
+				e(
+					Card,
+					null,
+					e( CardBody, null,
+						e( 'div', { className: 'dcb-block-grid' },
+							Object.keys( data.block_catalog ).map( function ( block ) {
+								return e( CheckboxControl, Object.assign( {}, noMargin, {
+									key: block,
+									label: data.block_catalog[ block ],
+									checked: allowedBlocks.indexOf( block ) !== -1,
+									onChange: function ( checked ) {
+										setAllowedBlocks( function ( prev ) {
+											return checked
+												? prev.concat( block )
+												: prev.filter( function ( b ) {
+													return b !== block;
+												} );
+										} );
+									},
+								} ) );
+							} )
+						)
+					)
+				)
+			);
+		}
+
 		// ---- Post Types tab ----
 		function typeCard( pt ) {
 			const profile = profiles[ pt.slug ] || { enabled: false, instructions: '', allowed_blocks: [] };
@@ -220,32 +256,7 @@
 					)
 				);
 
-				if ( pt.block_based ) {
-					const allowed = profile.allowed_blocks || [];
-					body.push(
-						e( 'div', { key: 'blocks', className: 'dcb-field' },
-							e( 'p', { className: 'dcb-subhead' }, __( 'Allowed blocks', 'dennis-content-builder' ) ),
-							e( 'p', { className: 'dcb-muted' }, __( 'Leave all unchecked to allow every block. Check some to restrict this type to just those.', 'dennis-content-builder' ) ),
-							e( 'div', { className: 'dcb-block-grid' },
-								Object.keys( data.block_catalog ).map( function ( block ) {
-									return e( CheckboxControl, Object.assign( {}, noMargin, {
-										key: block,
-										label: data.block_catalog[ block ],
-										checked: allowed.indexOf( block ) !== -1,
-										onChange: function ( checked ) {
-											const next = checked
-												? allowed.concat( block )
-												: allowed.filter( function ( b ) {
-													return b !== block;
-												} );
-											patchProfile( pt.slug, { allowed_blocks: next } );
-										},
-									} ) );
-								} )
-							)
-						)
-					);
-				} else {
+				if ( ! pt.block_based ) {
 					body.push(
 						e( 'p', { key: 'fieldnote', className: 'dcb-muted dcb-field' },
 							__( 'This type stores custom fields. Field editing arrives in a later version; for now the assistant can still create and edit any block content it has.', 'dennis-content-builder' )
@@ -286,11 +297,18 @@
 					className: 'dcb-tabs',
 					tabs: [
 						{ name: 'general', title: __( 'General', 'dennis-content-builder' ) },
+						{ name: 'blocks', title: __( 'Allowed Blocks', 'dennis-content-builder' ) },
 						{ name: 'types', title: __( 'Post Types', 'dennis-content-builder' ) },
 					],
 				},
 				function ( tab ) {
-					return 'types' === tab.name ? typesTab() : generalTab();
+					if ( 'blocks' === tab.name ) {
+						return blocksTab();
+					}
+					if ( 'types' === tab.name ) {
+						return typesTab();
+					}
+					return generalTab();
 				}
 			),
 			e(

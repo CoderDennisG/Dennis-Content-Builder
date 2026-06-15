@@ -268,25 +268,16 @@ final class Orchestrator {
 		$label = $obj ? $obj->labels->singular_name : $type;
 
 		$instructions = Profiles::instructions( $type );
-		$allowed      = Profiles::allowed_block_types( $type );
 
-		$parts = array();
-		if ( '' !== $instructions ) {
-			$parts[] = $instructions;
-		}
-		if ( null !== $allowed ) {
-			$parts[] = 'Use only these block types: ' . implode( ', ', $allowed ) . '.';
-		}
-
-		if ( ! $parts ) {
+		if ( '' === $instructions ) {
 			return $solo ? '' : sprintf( "- %s\n", $label );
 		}
 
 		if ( $solo ) {
-			return sprintf( "\n# Guidance for this %s\n%s\n", $label, implode( ' ', $parts ) );
+			return sprintf( "\n# Guidance for this %s\n%s\n", $label, $instructions );
 		}
 
-		return sprintf( "- %s: %s\n", $label, implode( ' ', $parts ) );
+		return sprintf( "- %s: %s\n", $label, $instructions );
 	}
 
 	private function system_prompt( ?array $post_context = null ): string {
@@ -305,6 +296,11 @@ final class Orchestrator {
 		}
 
 		$context .= $this->profile_guidance( $post_context );
+
+		$allowed_blocks = Profiles::allowed_blocks();
+		if ( null !== $allowed_blocks ) {
+			$context .= "\n# Allowed blocks\nUse only these block types anywhere you create or edit content: " . implode( ', ', $allowed_blocks ) . ". Do not use any other block type.\n";
+		}
 
 		return $context . <<<PROMPT
 You are the content assistant inside the WordPress site "{$site}". You build and edit pages and posts through the provided tools. Users are often non-technical — be friendly, concise, and never use jargon like "block markup" or "serialize".

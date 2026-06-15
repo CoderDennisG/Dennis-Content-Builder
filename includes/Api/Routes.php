@@ -123,6 +123,11 @@ final class Routes {
 			Profiles::save( $profiles );
 		}
 
+		$allowed_blocks = $request->get_param( 'allowed_blocks' );
+		if ( is_array( $allowed_blocks ) ) {
+			Profiles::save_allowed_blocks( $allowed_blocks );
+		}
+
 		return new WP_REST_Response( $this->settings_payload(), 200 );
 	}
 
@@ -148,16 +153,17 @@ final class Routes {
 		}
 
 		return array(
-			'model'         => $settings['model'],
-			'models'        => Plugin::models(),
-			'has_key'       => $has_key,
-			'key_hint'      => $has_key ? str_repeat( '•', 8 ) . substr( $settings['api_key'], -4 ) : '',
-			'roles'         => Capabilities::roles_with_cap(),
-			'all_roles'     => $all_roles,
-			'admin_role'    => 'administrator',
-			'post_types'    => $post_types,
-			'profiles'      => $profiles,
-			'block_catalog' => Profiles::block_catalog(),
+			'model'          => $settings['model'],
+			'models'         => Plugin::models(),
+			'has_key'        => $has_key,
+			'key_hint'       => $has_key ? str_repeat( '•', 8 ) . substr( $settings['api_key'], -4 ) : '',
+			'roles'          => Capabilities::roles_with_cap(),
+			'all_roles'      => $all_roles,
+			'admin_role'     => 'administrator',
+			'post_types'     => $post_types,
+			'profiles'       => $profiles,
+			'block_catalog'  => Profiles::block_catalog(),
+			'allowed_blocks' => Profiles::allowed_blocks() ?? array(),
 		);
 	}
 

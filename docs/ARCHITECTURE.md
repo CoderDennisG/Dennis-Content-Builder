@@ -125,10 +125,11 @@ Per tier: Full-tier blocks get the complete `style` object; Attributes-tier bloc
 
 - **`enabled`** — eligibility. Disabled types get no sidebar and refuse creation/editing. Defaults: `page`, `post`.
 - **`instructions`** — writing guidance/persona injected into the system prompt. When a post is open the sidebar injects that one type's guidance; the standalone chat injects the catalogue of eligible types.
-- **`allowed_blocks`** — a subset of the block catalogue (empty = all). Enforced **structurally** in `Model::sanitize_elements()` (disallowed elements are dropped, recursively; `raw` is exempt), not merely prompted.
 - **`fields`** *(v0.5.0, not built)* — custom-field read/write per type. Field-based CPTs (ACF/meta) currently get block + guidance support only.
 
-Enforcement is at every entry point, not just the prompt: `list_content`/`read_content`/`create_draft`/`update_content` all check `Profiles::is_eligible()` and apply `Profiles::allowed_block_types()`, and capability checks use each post type object's own `cap`. Managed by `DCB\Content\Profiles`; edited from the settings page "Post Types" tab.
+**Allowed blocks are global, not per-type** (option `dcb_allowed_blocks`): a subset of the block catalogue, empty = all, applied to every post type. Enforced **structurally** in `Model::sanitize_elements()` (disallowed elements dropped recursively; `raw` exempt) via `Profiles::allowed_blocks()`, and surfaced once to the model in the system prompt — not merely prompted.
+
+Enforcement is at every entry point, not just the prompt: `list_content`/`read_content`/`create_draft`/`update_content` all check `Profiles::is_eligible()` and apply the global `Profiles::allowed_blocks()`, and capability checks use each post type object's own `cap`. Managed by `DCB\Content\Profiles`; edited from the settings page (Allowed Blocks + Post Types tabs).
 
 ## Builder adapter contract
 

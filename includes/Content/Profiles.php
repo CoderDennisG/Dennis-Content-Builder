@@ -19,6 +19,9 @@ final class Profiles {
 
 	public const OPTION = 'dcb_profiles';
 
+	/** Global allowed-block list (applies to every post type). */
+	public const BLOCKS_OPTION = 'dcb_allowed_blocks';
+
 	/** Post types enabled by default before the admin configures anything. */
 	private const DEFAULT_ENABLED = array( 'page', 'post' );
 
@@ -85,22 +88,20 @@ final class Profiles {
 	}
 
 	/**
-	 * A type's profile, merged with defaults.
+	 * A type's profile, merged with defaults. Block restrictions are
+	 * global (see allowed_blocks()), not part of the per-type profile.
 	 *
-	 * @return array{enabled:bool, instructions:string, allowed_blocks:array}
+	 * @return array{enabled:bool, instructions:string}
 	 */
 	public static function get( string $type ): array {
 		$all   = self::all();
 		$saved = isset( $all[ $type ] ) && is_array( $all[ $type ] ) ? $all[ $type ] : array();
 
 		return array(
-			'enabled'        => array_key_exists( 'enabled', $saved )
+			'enabled'      => array_key_exists( 'enabled', $saved )
 				? (bool) $saved['enabled']
 				: in_array( $type, self::DEFAULT_ENABLED, true ),
-			'instructions'   => isset( $saved['instructions'] ) ? (string) $saved['instructions'] : '',
-			'allowed_blocks' => isset( $saved['allowed_blocks'] ) && is_array( $saved['allowed_blocks'] )
-				? array_values( $saved['allowed_blocks'] )
-				: array(),
+			'instructions' => isset( $saved['instructions'] ) ? (string) $saved['instructions'] : '',
 		);
 	}
 
@@ -124,19 +125,25 @@ final class Profiles {
 	}
 
 	/**
-	 * Allowed block (element) types for a post type, or null for "all".
-	 * An empty saved list means no restriction.
+	 * Global allowed block (element) types, or null for "all". An empty
+	 * saved list means no restriction. Applies to every post type.
 	 *
 	 * @return string[]|null
 	 */
-	public static function allowed_block_types( string $type ): ?array {
-		$allowed = self::get( $type )['allowed_blocks'];
-		if ( ! $allowed ) {
+	public static function allowed_blocks(): ?array {
+		$saved = get_option( self::BLOCKS_OPTION, array() );
+		if ( ! is_array( $saved ) || ! $saved ) {
 			return null;
 		}
-		// Only known catalog types; guard against stale slugs.
-		$valid = array_values( array_intersect( $allowed, array_keys( self::block_catalog() ) ) );
+		$valid = array_values( array_intersect( $saved, array_keys( self::block_catalog() ) ) );
 		return $valid ? $valid : null;
+	}
+
+	/** Persist the global allowed-block list. Empty = all blocks allowed. */
+	public static function save_allowed_blocks( array $blocks ): void {
+		$blocks = array_map( 'sanitize_key', $blocks );
+		$blocks = array_values( array_intersect( $blocks, array_keys( self::block_catalog() ) ) );
+		update_option( self::BLOCKS_OPTION, $blocks );
 	}
 
 	/**
@@ -150,8 +157,7 @@ final class Profiles {
 			$candidates[ $pt->name ] = true;
 		}
 
-		$catalog = array_keys( self::block_catalog() );
-		$clean   = array();
+		$clean = array();
 
 		foreach ( $incoming as $slug => $profile ) {
 			$slug = sanitize_key( (string) $slug );
@@ -159,13 +165,9 @@ final class Profiles {
 				continue;
 			}
 
-			$blocks = array_map( 'sanitize_key', (array) ( $profile['allowed_blocks'] ?? array() ) );
-			$blocks = array_values( array_intersect( $blocks, $catalog ) );
-
 			$clean[ $slug ] = array(
-				'enabled'        => ! empty( $profile['enabled'] ),
-				'instructions'   => sanitize_textarea_field( (string) ( $profile['instructions'] ?? '' ) ),
-				'allowed_blocks' => $blocks,
+				'enabled'      => ! empty( $profile['enabled'] ),
+				'instructions' => sanitize_textarea_field( (string) ( $profile['instructions'] ?? '' ) ),
 			);
 		}
 

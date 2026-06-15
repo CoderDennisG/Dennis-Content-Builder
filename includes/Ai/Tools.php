@@ -255,7 +255,7 @@ final class Tools {
 		$elements = Model::sanitize_elements(
 			$input['elements'] ?? array(),
 			false,
-			\DCB\Content\Profiles::allowed_block_types( $type )
+			\DCB\Content\Profiles::allowed_blocks()
 		);
 		if ( ! $elements ) {
 			return array( 'error' => 'No valid elements supplied.' );
@@ -306,7 +306,7 @@ final class Tools {
 		$elements = Model::sanitize_elements(
 			$input['elements'] ?? array(),
 			true,
-			\DCB\Content\Profiles::allowed_block_types( $post->post_type )
+			\DCB\Content\Profiles::allowed_blocks()
 		);
 		if ( ! $elements ) {
 			return array( 'error' => 'No valid elements supplied.' );

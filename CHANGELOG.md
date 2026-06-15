@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-06-13
+
+### Changed
+- Allowed blocks are now a **single global setting** on their own "Allowed Blocks" tab, applied to every post type — instead of being chosen per post type. The "Post Types" tab now carries just eligibility and per-type writing guidance. Settings has three tabs: General, Allowed Blocks, Post Types.
+- Block restriction is still enforced structurally at save and surfaced to the model once, globally, in the system prompt.
+
 ## [0.4.0] - 2026-06-13
 
 ### Added
