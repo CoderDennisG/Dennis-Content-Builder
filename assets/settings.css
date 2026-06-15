@@ -78,3 +78,41 @@
 .dcb-tabs {
 	margin-top: 8px;
 }
+
+/* Post Types compact list */
+.dcb-type-list {
+	padding: 4px 0;
+}
+
+.dcb-type-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 16px;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.dcb-type-row:last-child {
+	border-bottom: 0;
+}
+
+.dcb-type-main {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.dcb-guidance-btn.dcb-has-guidance {
+	color: #2271b1;
+}
+
+.dcb-guidance-modal {
+	max-width: 600px;
+}
+
+.dcb-guidance-modal .dcb-actions {
+	margin-top: 16px;
+	display: flex;
+	justify-content: flex-end;
+}

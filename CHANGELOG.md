@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-06-13
+
+### Changed
+- Post Types tab is now a compact list — one row per type with its eligibility checkbox and a pencil icon. Writing guidance opens in a modal on demand instead of an always-visible textarea, so the tab stays readable with many post types. The pencil highlights when guidance is set.
+
 ## [0.4.2] - 2026-06-13
 
 ### Changed

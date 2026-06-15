@@ -25,6 +25,7 @@
 		Notice,
 		Spinner,
 		Flex,
+		Modal,
 	} = wp.components;
 	const apiFetch = wp.apiFetch;
 	const __ = wp.i18n.__;
@@ -42,6 +43,7 @@
 		const [ testing, setTesting ] = useState( false );
 		const [ notice, setNotice ] = useState( null );
 		const [ testResult, setTestResult ] = useState( null );
+		const [ editing, setEditing ] = useState( null );
 
 		useEffect( function () {
 			apiFetch( { path: '/dcb/v1/settings' } )
@@ -227,52 +229,34 @@
 		}
 
 		// ---- Post Types tab ----
-		function typeCard( pt ) {
-			const profile = profiles[ pt.slug ] || { enabled: false, instructions: '', allowed_blocks: [] };
-
-			const body = [
-				e( CheckboxControl, Object.assign( {}, noMargin, {
-					key: 'enabled',
-					label: __( 'Let the assistant manage this type', 'dennis-content-builder' ),
-					checked: !! profile.enabled,
-					onChange: function ( checked ) {
-						patchProfile( pt.slug, { enabled: checked } );
-					},
-				} ) ),
-			];
-
-			if ( profile.enabled ) {
-				body.push(
-					e( 'div', { key: 'instr', className: 'dcb-field' },
-						e( TextareaControl, Object.assign( {}, noMargin, {
-							label: __( 'Writing guidance', 'dennis-content-builder' ),
-							help: __( 'How should the assistant write this type? Tone, structure, what to include. Optional.', 'dennis-content-builder' ),
-							rows: 3,
-							value: profile.instructions || '',
-							onChange: function ( value ) {
-								patchProfile( pt.slug, { instructions: value } );
-							},
-						} ) )
-					)
-				);
-
-				if ( ! pt.block_based ) {
-					body.push(
-						e( 'p', { key: 'fieldnote', className: 'dcb-muted dcb-field' },
-							__( 'This type stores custom fields. Field editing arrives in a later version; for now the assistant can still create and edit any block content it has.', 'dennis-content-builder' )
-						)
-					);
-				}
-			}
+		function typeRow( pt ) {
+			const profile = profiles[ pt.slug ] || { enabled: false, instructions: '' };
+			const hasGuidance = !! ( profile.instructions && profile.instructions.trim() );
 
 			return e(
-				Card,
-				{ key: pt.slug, className: 'dcb-card-spaced' },
-				e( CardHeader, null,
-					e( 'h2', { className: 'dcb-card-title' }, pt.label ),
+				'div',
+				{ key: pt.slug, className: 'dcb-type-row' },
+				e( 'div', { className: 'dcb-type-main' },
+					e( CheckboxControl, Object.assign( {}, noMargin, {
+						label: pt.label,
+						checked: !! profile.enabled,
+						onChange: function ( checked ) {
+							patchProfile( pt.slug, { enabled: checked } );
+						},
+					} ) ),
 					e( 'span', { className: 'dcb-pill' }, pt.block_based ? __( 'Blocks', 'dennis-content-builder' ) : __( 'Fields', 'dennis-content-builder' ) )
 				),
-				e( CardBody, null, body )
+				e( Button, {
+					className: 'dcb-guidance-btn' + ( hasGuidance ? ' dcb-has-guidance' : '' ),
+					icon: 'edit',
+					label: hasGuidance
+						? __( 'Edit writing guidance (set)', 'dennis-content-builder' )
+						: __( 'Add writing guidance', 'dennis-content-builder' ),
+					showTooltip: true,
+					onClick: function () {
+						setEditing( pt.slug );
+					},
+				} )
 			);
 		}
 
@@ -280,8 +264,46 @@
 			return e(
 				'div',
 				null,
-				e( 'p', { className: 'dcb-muted dcb-intro' }, __( 'Give each content type its own voice and rules. Disabled types are hidden from the assistant entirely.', 'dennis-content-builder' ) ),
-				( data.post_types || [] ).map( typeCard )
+				e( 'p', { className: 'dcb-muted dcb-intro' }, __( 'Check the types the assistant may manage. Use the pencil to set how it should write each one.', 'dennis-content-builder' ) ),
+				e( Card, null, e( CardBody, { className: 'dcb-type-list' }, ( data.post_types || [] ).map( typeRow ) ) )
+			);
+		}
+
+		function guidanceModal() {
+			const pt = ( data.post_types || [] ).find( function ( p ) {
+				return p.slug === editing;
+			} );
+			if ( ! pt ) {
+				return null;
+			}
+			const profile = profiles[ editing ] || { instructions: '' };
+
+			return e(
+				Modal,
+				{
+					title: __( 'Writing guidance', 'dennis-content-builder' ) + ' — ' + pt.label,
+					onRequestClose: function () {
+						setEditing( null );
+					},
+					className: 'dcb-guidance-modal',
+				},
+				e( TextareaControl, Object.assign( {}, noMargin, {
+					label: __( 'How should the assistant write this type?', 'dennis-content-builder' ),
+					help: __( 'Tone, structure, what to include. Optional. Remember to Save settings after closing.', 'dennis-content-builder' ),
+					rows: 8,
+					value: profile.instructions || '',
+					onChange: function ( value ) {
+						patchProfile( editing, { instructions: value } );
+					},
+				} ) ),
+				! pt.block_based && e( 'p', { className: 'dcb-muted' },
+					__( 'This type stores custom fields. Field editing arrives in a later version; for now the assistant can still create and edit any block content it has.', 'dennis-content-builder' )
+				),
+				e( 'div', { className: 'dcb-actions' },
+					e( Button, { variant: 'primary', onClick: function () {
+						setEditing( null );
+					} }, __( 'Done', 'dennis-content-builder' ) )
+				)
 			);
 		}
 
@@ -315,7 +337,8 @@
 				'div',
 				{ className: 'dcb-actions' },
 				e( Button, { variant: 'primary', onClick: save, isBusy: saving, disabled: saving }, __( 'Save settings', 'dennis-content-builder' ) )
-			)
+			),
+			editing && guidanceModal()
 		);
 	}
 
