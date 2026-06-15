@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-06-13
+
+### Changed
+- Spacing on the Allowed Blocks checklist (row gap + breathing room) so the options aren't cramped.
+
 ## [0.4.1] - 2026-06-13
 
 ### Changed

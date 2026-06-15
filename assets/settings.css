@@ -54,8 +54,13 @@
 .dcb-block-grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 0 24px;
-	margin-top: 8px;
+	gap: 14px 32px;
+	margin-top: 12px;
+	padding: 4px 0;
+}
+
+.dcb-block-grid .components-base-control {
+	margin-bottom: 0;
 }
 
 .dcb-pill {
