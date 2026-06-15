@@ -119,6 +119,17 @@ Adapter responsibility: block supports require the saved HTML to carry classes m
 
 Per tier: Full-tier blocks get the complete `style` object; Attributes-tier blocks expose only the style attributes they register (best effort); Passthrough blocks' styling is never touched.
 
+## Post type profiles
+
+"A different AI per post type" is implemented as one engine + one model with a per-post-type **profile** — never separate AIs. A profile (stored in option `dcb_profiles`, keyed by post type slug) carries:
+
+- **`enabled`** — eligibility. Disabled types get no sidebar and refuse creation/editing. Defaults: `page`, `post`.
+- **`instructions`** — writing guidance/persona injected into the system prompt. When a post is open the sidebar injects that one type's guidance; the standalone chat injects the catalogue of eligible types.
+- **`allowed_blocks`** — a subset of the block catalogue (empty = all). Enforced **structurally** in `Model::sanitize_elements()` (disallowed elements are dropped, recursively; `raw` is exempt), not merely prompted.
+- **`fields`** *(v0.5.0, not built)* — custom-field read/write per type. Field-based CPTs (ACF/meta) currently get block + guidance support only.
+
+Enforcement is at every entry point, not just the prompt: `list_content`/`read_content`/`create_draft`/`update_content` all check `Profiles::is_eligible()` and apply `Profiles::allowed_block_types()`, and capability checks use each post type object's own `cap`. Managed by `DCB\Content\Profiles`; edited from the settings page "Post Types" tab.
+
 ## Builder adapter contract
 
 ```

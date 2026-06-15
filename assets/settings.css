@@ -41,3 +41,35 @@
 	color: #757575;
 	font-style: italic;
 }
+
+.dcb-intro {
+	margin: 8px 0 16px;
+}
+
+.dcb-subhead {
+	margin: 0 0 4px;
+	font-weight: 600;
+}
+
+.dcb-block-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 0 24px;
+	margin-top: 8px;
+}
+
+.dcb-pill {
+	margin-left: auto;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: #50575e;
+	background: #f0f0f1;
+	border-radius: 10px;
+	padding: 2px 10px;
+}
+
+.dcb-tabs {
+	margin-top: 8px;
+}

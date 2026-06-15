@@ -60,7 +60,7 @@ final class Model {
 	 *                         when the tree came from parsing existing
 	 *                         content, not from the AI).
 	 */
-	public static function sanitize_elements( $elements, bool $allow_raw = false ): array {
+	public static function sanitize_elements( $elements, bool $allow_raw = false, ?array $allowed_types = null ): array {
 		if ( ! is_array( $elements ) ) {
 			return array();
 		}
@@ -72,7 +72,13 @@ final class Model {
 				continue;
 			}
 
-			$out = self::sanitize_element( $el, $allow_raw );
+			// Per-post-type block restriction. 'raw' is exempt: it is
+			// opaque passthrough, governed by $allow_raw, not the catalog.
+			if ( null !== $allowed_types && 'raw' !== $el['type'] && ! in_array( $el['type'], $allowed_types, true ) ) {
+				continue;
+			}
+
+			$out = self::sanitize_element( $el, $allow_raw, $allowed_types );
 			if ( null !== $out ) {
 				$clean[] = $out;
 			}
@@ -81,7 +87,7 @@ final class Model {
 		return $clean;
 	}
 
-	private static function sanitize_element( array $el, bool $allow_raw ): ?array {
+	private static function sanitize_element( array $el, bool $allow_raw, ?array $allowed_types = null ): ?array {
 		switch ( $el['type'] ) {
 			case 'heading':
 				$level = isset( $el['level'] ) ? (int) $el['level'] : 2;
@@ -145,7 +151,7 @@ final class Model {
 				foreach ( (array) ( $el['columns'] ?? array() ) as $col ) {
 					if ( is_array( $col ) ) {
 						$cols[] = array(
-							'elements' => self::sanitize_elements( $col['elements'] ?? array(), $allow_raw ),
+							'elements' => self::sanitize_elements( $col['elements'] ?? array(), $allow_raw, $allowed_types ),
 						);
 					}
 				}
@@ -160,7 +166,7 @@ final class Model {
 			case 'group':
 				return array(
 					'type'     => 'group',
-					'elements' => self::sanitize_elements( $el['elements'] ?? array(), $allow_raw ),
+					'elements' => self::sanitize_elements( $el['elements'] ?? array(), $allow_raw, $allowed_types ),
 				);
 
 			case 'separator':

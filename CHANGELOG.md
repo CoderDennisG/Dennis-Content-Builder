@@ -5,7 +5,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
-## [0.3.1] - 2026-06-13
+## [0.4.0] - 2026-06-13
+
+### Added
+- Post type profiles: each post type gets its own behavior from one shared model — there is no separate "AI" per type, just a per-type configuration.
+  - **Eligibility allowlist** — choose which post types the assistant manages; the editor sidebar is hidden and creation refused on the rest (defaults: pages and posts).
+  - **Writing guidance** — per-type instructions/persona injected into the system prompt (a Product writes differently from a Blog post).
+  - **Allowed blocks** — restrict each type to a chosen subset of blocks; enforced structurally at save (`Model::sanitize_elements`), not just suggested.
+- New "Post Types" tab on the settings page (wp-components TabPanel) to edit all of the above.
+- Profile rules are enforced across every entry point: `list_content`/`read_content`/`create_draft`/`update_content` all respect eligibility and per-type block limits, using each post type's own capability.
+
+### Notes
+- Custom-field (ACF/meta) editing is intentionally deferred to v0.5.0; field-based types show a note and still get block + guidance support.
 
 ### Changed
 - Settings page rebuilt on WordPress's bundled `@wordpress/components` (Card, TextControl, SelectControl, CheckboxControl, Notice) for a native, modern look — no build step and no new dependency. It now reads/writes through a new `dcb/v1/settings` REST endpoint (manage_options) instead of an `options.php` form. Scope is the settings page only; the chat and editor sidebar are unchanged.

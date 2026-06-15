@@ -5,6 +5,7 @@ namespace DCB\Api;
 
 use DCB\Ai\Orchestrator;
 use DCB\Content\Conversations;
+use DCB\Content\Profiles;
 use DCB\Plugin;
 use DCB\Support\Capabilities;
 use WP_Error;
@@ -117,6 +118,11 @@ final class Routes {
 		$roles = array_map( 'sanitize_key', (array) $request->get_param( 'roles' ) );
 		Capabilities::sync_roles( $roles );
 
+		$profiles = $request->get_param( 'profiles' );
+		if ( is_array( $profiles ) ) {
+			Profiles::save( $profiles );
+		}
+
 		return new WP_REST_Response( $this->settings_payload(), 200 );
 	}
 
@@ -130,14 +136,28 @@ final class Routes {
 			$all_roles[ $slug ] = translate_user_role( $info['name'] );
 		}
 
+		$post_types = array();
+		$profiles   = array();
+		foreach ( Profiles::candidate_post_types() as $pt ) {
+			$post_types[] = array(
+				'slug'        => $pt->name,
+				'label'       => $pt->labels->name,
+				'block_based' => post_type_supports( $pt->name, 'editor' ),
+			);
+			$profiles[ $pt->name ] = Profiles::get( $pt->name );
+		}
+
 		return array(
-			'model'      => $settings['model'],
-			'models'     => Plugin::models(),
-			'has_key'    => $has_key,
-			'key_hint'   => $has_key ? str_repeat( '•', 8 ) . substr( $settings['api_key'], -4 ) : '',
-			'roles'      => Capabilities::roles_with_cap(),
-			'all_roles'  => $all_roles,
-			'admin_role' => 'administrator',
+			'model'         => $settings['model'],
+			'models'        => Plugin::models(),
+			'has_key'       => $has_key,
+			'key_hint'      => $has_key ? str_repeat( '•', 8 ) . substr( $settings['api_key'], -4 ) : '',
+			'roles'         => Capabilities::roles_with_cap(),
+			'all_roles'     => $all_roles,
+			'admin_role'    => 'administrator',
+			'post_types'    => $post_types,
+			'profiles'      => $profiles,
+			'block_catalog' => Profiles::block_catalog(),
 		);
 	}
 

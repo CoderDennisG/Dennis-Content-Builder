@@ -45,6 +45,12 @@ final class ChatPage {
 			return;
 		}
 
+		// Only on post types the admin marked AI-eligible.
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		if ( $screen && ! \DCB\Content\Profiles::is_eligible( (string) $screen->post_type ) ) {
+			return;
+		}
+
 		$this->enqueue_chat_core();
 
 		wp_enqueue_script(

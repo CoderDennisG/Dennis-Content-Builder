@@ -112,7 +112,7 @@ final class Tools {
 					'properties'           => array(
 						'post_type' => array(
 							'type' => 'string',
-							'enum' => array( 'page', 'post' ),
+							'enum' => \DCB\Content\Profiles::eligible_types(),
 						),
 						'title'     => array( 'type' => 'string' ),
 						'elements'  => $elements_schema,
@@ -188,9 +188,10 @@ final class Tools {
 	}
 
 	private function list_content( array $input ): array {
-		$type = $input['post_type'] ?? 'any';
-		if ( ! in_array( $type, array( 'page', 'post' ), true ) ) {
-			$type = array( 'page', 'post' );
+		$eligible = \DCB\Content\Profiles::eligible_types();
+		$type     = $input['post_type'] ?? 'any';
+		if ( ! in_array( $type, $eligible, true ) ) {
+			$type = $eligible;
 		}
 
 		$query = new WP_Query(
@@ -225,6 +226,9 @@ final class Tools {
 		if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 			return array( 'error' => 'Post not found or not editable by this user.' );
 		}
+		if ( ! \DCB\Content\Profiles::is_eligible( $post->post_type ) ) {
+			return array( 'error' => 'This content type is not managed by the assistant.' );
+		}
 
 		$adapter = new GutenbergAdapter();
 
@@ -238,13 +242,21 @@ final class Tools {
 	}
 
 	private function create_draft( array $input ): array {
-		$type = ( 'post' === ( $input['post_type'] ?? 'page' ) ) ? 'post' : 'page';
-		$cap  = 'post' === $type ? 'edit_posts' : 'edit_pages';
-		if ( ! current_user_can( $cap ) ) {
+		$type    = sanitize_key( (string) ( $input['post_type'] ?? 'page' ) );
+		$pt_obj  = get_post_type_object( $type );
+
+		if ( ! $pt_obj || ! \DCB\Content\Profiles::is_eligible( $type ) ) {
+			return array( 'error' => 'That content type is not available to the assistant.' );
+		}
+		if ( ! current_user_can( $pt_obj->cap->create_posts ) ) {
 			return array( 'error' => 'Current user may not create this content type.' );
 		}
 
-		$elements = Model::sanitize_elements( $input['elements'] ?? array() );
+		$elements = Model::sanitize_elements(
+			$input['elements'] ?? array(),
+			false,
+			\DCB\Content\Profiles::allowed_block_types( $type )
+		);
 		if ( ! $elements ) {
 			return array( 'error' => 'No valid elements supplied.' );
 		}
@@ -284,10 +296,18 @@ final class Tools {
 		if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 			return array( 'error' => 'Post not found or not editable by this user.' );
 		}
+		if ( ! \DCB\Content\Profiles::is_eligible( $post->post_type ) ) {
+			return array( 'error' => 'This content type is not managed by the assistant.' );
+		}
 
 		// Raw passthrough is allowed here: trees for updates legitimately
-		// carry blocks that came from read_content.
-		$elements = Model::sanitize_elements( $input['elements'] ?? array(), true );
+		// carry blocks that came from read_content. Block restriction still
+		// applies to authored (non-raw) elements.
+		$elements = Model::sanitize_elements(
+			$input['elements'] ?? array(),
+			true,
+			\DCB\Content\Profiles::allowed_block_types( $post->post_type )
+		);
 		if ( ! $elements ) {
 			return array( 'error' => 'No valid elements supplied.' );
 		}

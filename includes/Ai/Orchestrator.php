@@ -11,6 +11,7 @@ use Anthropic\Messages\RawMessageDeltaEvent;
 use Anthropic\Messages\TextDelta;
 use Anthropic\Messages\ToolUseBlock;
 use DCB\Content\Conversations;
+use DCB\Content\Profiles;
 use DCB\Plugin;
 
 /**
@@ -240,6 +241,54 @@ final class Orchestrator {
 		return $response->model;
 	}
 
+	/**
+	 * Per-post-type guidance: the open type's persona + block limits when
+	 * a post is open, or the catalogue of eligible types otherwise.
+	 */
+	private function profile_guidance( ?array $post_context ): string {
+		if ( $post_context ) {
+			return $this->type_guidance( (string) $post_context['type'], true );
+		}
+
+		$lines = array();
+		foreach ( Profiles::eligible_types() as $type ) {
+			$lines[] = $this->type_guidance( $type, false );
+		}
+		$lines = array_filter( $lines );
+
+		if ( ! $lines ) {
+			return '';
+		}
+
+		return "\n# Content types you manage\nYou may create and edit these content types only:\n" . implode( '', $lines );
+	}
+
+	private function type_guidance( string $type, bool $solo ): string {
+		$obj   = get_post_type_object( $type );
+		$label = $obj ? $obj->labels->singular_name : $type;
+
+		$instructions = Profiles::instructions( $type );
+		$allowed      = Profiles::allowed_block_types( $type );
+
+		$parts = array();
+		if ( '' !== $instructions ) {
+			$parts[] = $instructions;
+		}
+		if ( null !== $allowed ) {
+			$parts[] = 'Use only these block types: ' . implode( ', ', $allowed ) . '.';
+		}
+
+		if ( ! $parts ) {
+			return $solo ? '' : sprintf( "- %s\n", $label );
+		}
+
+		if ( $solo ) {
+			return sprintf( "\n# Guidance for this %s\n%s\n", $label, implode( ' ', $parts ) );
+		}
+
+		return sprintf( "- %s: %s\n", $label, implode( ' ', $parts ) );
+	}
+
 	private function system_prompt( ?array $post_context = null ): string {
 		$site = get_bloginfo( 'name' );
 
@@ -254,6 +303,8 @@ final class Orchestrator {
 				$post_context['type']
 			);
 		}
+
+		$context .= $this->profile_guidance( $post_context );
 
 		return $context . <<<PROMPT
 You are the content assistant inside the WordPress site "{$site}". You build and edit pages and posts through the provided tools. Users are often non-technical — be friendly, concise, and never use jargon like "block markup" or "serialize".
