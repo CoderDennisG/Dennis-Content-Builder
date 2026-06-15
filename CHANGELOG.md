@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-06-13
+
+### Changed
+- Settings page rebuilt on WordPress's bundled `@wordpress/components` (Card, TextControl, SelectControl, CheckboxControl, Notice) for a native, modern look — no build step and no new dependency. It now reads/writes through a new `dcb/v1/settings` REST endpoint (manage_options) instead of an `options.php` form. Scope is the settings page only; the chat and editor sidebar are unchanged.
+
 ## [0.3.0] - 2026-06-13
 
 ### Added

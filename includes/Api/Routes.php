@@ -5,6 +5,7 @@ namespace DCB\Api;
 
 use DCB\Ai\Orchestrator;
 use DCB\Content\Conversations;
+use DCB\Plugin;
 use DCB\Support\Capabilities;
 use WP_Error;
 use WP_REST_Request;
@@ -65,6 +66,78 @@ final class Routes {
 				'callback'            => array( $this, 'test' ),
 				'permission_callback' => static fn() => current_user_can( 'manage_options' ),
 			)
+		);
+
+		register_rest_route(
+			'dcb/v1',
+			'/settings',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'get_settings' ),
+					'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+				),
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( $this, 'update_settings' ),
+					'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+				),
+			)
+		);
+	}
+
+	public function get_settings(): WP_REST_Response {
+		return new WP_REST_Response( $this->settings_payload(), 200 );
+	}
+
+	public function update_settings( WP_REST_Request $request ): WP_REST_Response {
+		$current = Plugin::settings();
+
+		$model = sanitize_text_field( (string) $request->get_param( 'model' ) );
+		if ( ! array_key_exists( $model, Plugin::models() ) ) {
+			$model = $current['model'];
+		}
+
+		// Empty key keeps the saved one (write-only field).
+		$api_key = trim( (string) $request->get_param( 'api_key' ) );
+		if ( '' === $api_key ) {
+			$api_key = $current['api_key'];
+		} else {
+			$api_key = sanitize_text_field( $api_key );
+		}
+
+		update_option(
+			Plugin::OPTION,
+			array(
+				'api_key' => $api_key,
+				'model'   => $model,
+			)
+		);
+
+		$roles = array_map( 'sanitize_key', (array) $request->get_param( 'roles' ) );
+		Capabilities::sync_roles( $roles );
+
+		return new WP_REST_Response( $this->settings_payload(), 200 );
+	}
+
+	/** Settings shape for the admin app. The API key is never returned. */
+	private function settings_payload(): array {
+		$settings = Plugin::settings();
+		$has_key  = '' !== $settings['api_key'];
+
+		$all_roles = array();
+		foreach ( get_editable_roles() as $slug => $info ) {
+			$all_roles[ $slug ] = translate_user_role( $info['name'] );
+		}
+
+		return array(
+			'model'      => $settings['model'],
+			'models'     => Plugin::models(),
+			'has_key'    => $has_key,
+			'key_hint'   => $has_key ? str_repeat( '•', 8 ) . substr( $settings['api_key'], -4 ) : '',
+			'roles'      => Capabilities::roles_with_cap(),
+			'all_roles'  => $all_roles,
+			'admin_role' => 'administrator',
 		);
 	}
 

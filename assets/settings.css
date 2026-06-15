@@ -1,0 +1,43 @@
+.dcb-settings-app {
+	max-width: 720px;
+	margin-top: 16px;
+}
+
+.dcb-card-title {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.dcb-card-spaced {
+	margin-top: 16px;
+}
+
+.dcb-field {
+	margin-top: 16px;
+}
+
+.dcb-actions {
+	margin-top: 16px;
+}
+
+.dcb-muted {
+	margin: 12px 0 0;
+	color: #757575;
+	font-size: 12px;
+}
+
+.dcb-test-ok {
+	color: #008a20;
+	font-weight: 600;
+}
+
+.dcb-test-fail {
+	color: #b32d2e;
+	font-weight: 600;
+}
+
+.dcb-test-hint {
+	color: #757575;
+	font-style: italic;
+}
