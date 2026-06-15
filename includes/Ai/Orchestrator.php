@@ -43,6 +43,33 @@ final class Orchestrator {
 	 * @return array{reply:string, actions:array}
 	 */
 	public function run( int $conversation_id, int $user_id, ?array $post_context = null ): array {
+		return $this->agent_loop( $conversation_id, $user_id, $this->system_prompt( $post_context ) );
+	}
+
+	/**
+	 * Headless single-shot creation for the scheduler. No streaming, no
+	 * open post — just "create one X from this brief", as $user_id.
+	 *
+	 * @return array{reply:string, actions:array}
+	 */
+	public function run_scheduled( string $post_type, string $brief, int $user_id ): array {
+		$conversation_id = Conversations::create(
+			$user_id,
+			sprintf( '[auto] %s — %s', $post_type, current_time( 'mysql' ) ),
+			0
+		);
+		$kickoff = '' === trim( $brief ) ? 'Create a new item now.' : $brief;
+		Conversations::append( $conversation_id, 'user', $kickoff );
+
+		return $this->agent_loop( $conversation_id, $user_id, $this->scheduled_prompt( $post_type ) );
+	}
+
+	/**
+	 * The tool-use loop, shared by interactive and scheduled runs.
+	 *
+	 * @return array{reply:string, actions:array}
+	 */
+	private function agent_loop( int $conversation_id, int $user_id, string $system ): array {
 		$settings = Plugin::settings();
 
 		if ( '' === $settings['api_key'] ) {
@@ -58,8 +85,6 @@ final class Orchestrator {
 		);
 		$messages = Conversations::messages_for_api( $conversation_id );
 		$reply    = '';
-
-		$system = $this->system_prompt( $post_context );
 
 		for ( $i = 0; $i < self::MAX_ITERATIONS; $i++ ) {
 			$turn = $this->stream_one_turn( $client, $settings['model'], $tools, $messages, $system );
@@ -296,13 +321,42 @@ final class Orchestrator {
 		}
 
 		$context .= $this->profile_guidance( $post_context );
+		$context .= $this->blocks_clause();
 
-		$allowed_blocks = Profiles::allowed_blocks();
-		if ( null !== $allowed_blocks ) {
-			$context .= "\n# Allowed blocks\nUse only these block types anywhere you create or edit content: " . implode( ', ', $allowed_blocks ) . ". Do not use any other block type.\n";
+		return $context . $this->core_prompt();
+	}
+
+	/**
+	 * Headless creation directive: act once, no questions. Publishing (if
+	 * any) is handled by the Scheduler after the run — the model itself
+	 * still only ever drafts.
+	 */
+	private function scheduled_prompt( string $post_type ): string {
+		$obj   = get_post_type_object( $post_type );
+		$label = $obj ? $obj->labels->singular_name : $post_type;
+
+		$context  = sprintf(
+			"\n# Automated run\nYou are running on a schedule with no person present. Using create_draft, create exactly ONE %s now from the brief in the user message. Do not ask questions, do not wait for confirmation — produce the item, then stop. Vary the angle so repeated runs don't duplicate earlier items.\n",
+			$label
+		);
+		$context .= $this->type_guidance( $post_type, true );
+		$context .= $this->blocks_clause();
+
+		return $context . $this->core_prompt();
+	}
+
+	private function blocks_clause(): string {
+		$allowed = Profiles::allowed_blocks();
+		if ( null === $allowed ) {
+			return '';
 		}
+		return "\n# Allowed blocks\nUse only these block types anywhere you create or edit content: " . implode( ', ', $allowed ) . ". Do not use any other block type.\n";
+	}
 
-		return $context . <<<PROMPT
+	private function core_prompt(): string {
+		$site = get_bloginfo( 'name' );
+
+		return <<<PROMPT
 You are the content assistant inside the WordPress site "{$site}". You build and edit pages and posts through the provided tools. Users are often non-technical — be friendly, concise, and never use jargon like "block markup" or "serialize".
 
 # How content works

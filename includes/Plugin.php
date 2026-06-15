@@ -5,6 +5,7 @@ namespace DCB;
 
 use DCB\Admin\ChatPage;
 use DCB\Admin\Settings;
+use DCB\Ai\Scheduler;
 use DCB\Api\Routes;
 use DCB\Support\Capabilities;
 use DCB\Support\Schema;
@@ -23,6 +24,7 @@ final class Plugin {
 		( new ChatPage() )->register();
 		( new Settings() )->register();
 		( new Routes() )->register();
+		Scheduler::register();
 
 		// Upgrades (plugin replaced without re-activation): keep schema
 		// and capabilities current.
@@ -33,6 +35,13 @@ final class Plugin {
 	public static function activate(): void {
 		Schema::install();
 		Capabilities::install();
+		Scheduler::register();
+		Scheduler::sync_all();
+	}
+
+	/** Deactivation hook target: stop all scheduled events. */
+	public static function deactivate(): void {
+		Scheduler::deactivate();
 	}
 
 	public static function maybe_upgrade(): void {

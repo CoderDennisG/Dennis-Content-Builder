@@ -114,5 +114,44 @@
 .dcb-guidance-modal .dcb-actions {
 	margin-top: 16px;
 	display: flex;
+	align-items: center;
+	gap: 12px;
 	justify-content: flex-end;
+}
+
+.dcb-sep {
+	border: 0;
+	border-top: 1px solid #e0e0e0;
+	margin: 20px 0;
+}
+
+.dcb-sched-label,
+.dcb-sched .dcb-field {
+	margin-top: 14px;
+}
+
+.dcb-sched-label {
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.dcb-day-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.dcb-day {
+	min-width: 48px;
+	justify-content: center;
+}
+
+.dcb-warn {
+	margin: 8px 0 0;
+	padding: 8px 12px;
+	background: #fcf9e8;
+	border: 1px solid #dba617;
+	border-radius: 4px;
+	font-size: 12px;
+	color: #645417;
 }

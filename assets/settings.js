@@ -44,6 +44,8 @@
 		const [ notice, setNotice ] = useState( null );
 		const [ testResult, setTestResult ] = useState( null );
 		const [ editing, setEditing ] = useState( null );
+		const [ running, setRunning ] = useState( false );
+		const [ runResult, setRunResult ] = useState( null );
 
 		useEffect( function () {
 			apiFetch( { path: '/dcb/v1/settings' } )
@@ -106,11 +108,36 @@
 
 		function patchProfile( slug, patch ) {
 			setProfiles( function ( prev ) {
-				const base = prev[ slug ] || { enabled: false, instructions: '', allowed_blocks: [] };
+				const base = prev[ slug ] || { enabled: false, instructions: '', schedule: defaultSchedule() };
 				const next = Object.assign( {}, prev );
 				next[ slug ] = Object.assign( {}, base, patch );
 				return next;
 			} );
+		}
+
+		function defaultSchedule() {
+			return { enabled: false, days: [], time: '09:00', auto_publish: false, brief: '' };
+		}
+
+		function patchSchedule( slug, patch ) {
+			const base = profiles[ slug ] || { enabled: false, instructions: '', schedule: defaultSchedule() };
+			const schedule = Object.assign( {}, defaultSchedule(), base.schedule || {}, patch );
+			patchProfile( slug, { schedule: schedule } );
+		}
+
+		function runNow( slug ) {
+			setRunning( true );
+			setRunResult( null );
+			apiFetch( { path: '/dcb/v1/run-schedule', method: 'POST', data: { post_type: slug } } )
+				.then( function ( res ) {
+					setRunResult( { ok: true, edit: res.edit, published: res.published } );
+				} )
+				.catch( function ( err ) {
+					setRunResult( { ok: false, message: err.message } );
+				} )
+				.finally( function () {
+					setRunning( false );
+				} );
 		}
 
 		// ---- General tab ----
@@ -269,6 +296,15 @@
 			);
 		}
 
+		function closeModal() {
+			setEditing( null );
+			setRunResult( null );
+		}
+
+		function fmt( ts ) {
+			return ts ? new Date( ts * 1000 ).toLocaleString() : '—';
+		}
+
 		function guidanceModal() {
 			const pt = ( data.post_types || [] ).find( function ( p ) {
 				return p.slug === editing;
@@ -276,21 +312,20 @@
 			if ( ! pt ) {
 				return null;
 			}
-			const profile = profiles[ editing ] || { instructions: '' };
+			const profile = profiles[ editing ] || { instructions: '', schedule: defaultSchedule() };
+			const schedule = Object.assign( {}, defaultSchedule(), profile.schedule || {} );
+			const dayLabels = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+			const state = ( data.schedule_state || {} )[ editing ] || {};
 
 			return e(
 				Modal,
-				{
-					title: __( 'Writing guidance', 'dennis-content-builder' ) + ' — ' + pt.label,
-					onRequestClose: function () {
-						setEditing( null );
-					},
-					className: 'dcb-guidance-modal',
-				},
+				{ title: pt.label, onRequestClose: closeModal, className: 'dcb-guidance-modal' },
+
+				// Writing guidance
 				e( TextareaControl, Object.assign( {}, noMargin, {
-					label: __( 'How should the assistant write this type?', 'dennis-content-builder' ),
-					help: __( 'Tone, structure, what to include. Optional. Remember to Save settings after closing.', 'dennis-content-builder' ),
-					rows: 8,
+					label: __( 'Writing guidance', 'dennis-content-builder' ),
+					help: __( 'How should the assistant write this type? Tone, structure, what to include. Optional. Remember to Save settings after closing.', 'dennis-content-builder' ),
+					rows: 6,
 					value: profile.instructions || '',
 					onChange: function ( value ) {
 						patchProfile( editing, { instructions: value } );
@@ -299,10 +334,97 @@
 				! pt.block_based && e( 'p', { className: 'dcb-muted' },
 					__( 'This type stores custom fields. Field editing arrives in a later version; for now the assistant can still create and edit any block content it has.', 'dennis-content-builder' )
 				),
+
+				e( 'hr', { className: 'dcb-sep' } ),
+
+				// Automatic creation
+				e( 'p', { className: 'dcb-subhead' }, __( 'Automatic creation', 'dennis-content-builder' ) ),
+				e( CheckboxControl, Object.assign( {}, noMargin, {
+					label: __( 'Create new content automatically on a schedule', 'dennis-content-builder' ),
+					checked: !! schedule.enabled,
+					onChange: function ( checked ) {
+						patchSchedule( editing, { enabled: checked } );
+					},
+				} ) ),
+
+				schedule.enabled && e( 'div', { className: 'dcb-sched' },
+					e( 'p', { className: 'dcb-sched-label' }, __( 'Days', 'dennis-content-builder' ) ),
+					e( 'div', { className: 'dcb-day-row' },
+						( data.weekdays || [] ).map( function ( d ) {
+							const on = schedule.days.indexOf( d ) !== -1;
+							return e( Button, {
+								key: d,
+								variant: on ? 'primary' : 'secondary',
+								className: 'dcb-day',
+								onClick: function () {
+									patchSchedule( editing, {
+										days: on ? schedule.days.filter( function ( x ) {
+											return x !== d;
+										} ) : schedule.days.concat( d ),
+									} );
+								},
+							}, dayLabels[ d ] || d );
+						} )
+					),
+					e( 'div', { className: 'dcb-field' },
+						e( TextControl, Object.assign( {}, noMargin, {
+							type: 'time',
+							label: __( 'Time', 'dennis-content-builder' ),
+							value: schedule.time,
+							onChange: function ( v ) {
+								patchSchedule( editing, { time: v } );
+							},
+						} ) ),
+						e( 'p', { className: 'dcb-muted' },
+							/* translators: %s: site timezone */
+							( __( 'Site timezone: %s', 'dennis-content-builder' ) ).replace( '%s', data.timezone || 'UTC' )
+						)
+					),
+					e( 'div', { className: 'dcb-field' },
+						e( TextareaControl, Object.assign( {}, noMargin, {
+							label: __( 'What should each run create?', 'dennis-content-builder' ),
+							help: __( 'A standing brief used every run, e.g. "Write a fresh beginner WordPress tip with a short intro and 3 steps."', 'dennis-content-builder' ),
+							rows: 3,
+							value: schedule.brief,
+							onChange: function ( v ) {
+								patchSchedule( editing, { brief: v } );
+							},
+						} ) )
+					),
+					e( CheckboxControl, Object.assign( {}, noMargin, {
+						className: 'dcb-field',
+						label: __( 'Publish automatically (skip review)', 'dennis-content-builder' ),
+						checked: !! schedule.auto_publish,
+						onChange: function ( checked ) {
+							patchSchedule( editing, { auto_publish: checked } );
+						},
+					} ) ),
+					schedule.auto_publish && e( 'p', { className: 'dcb-warn' },
+						__( '⚠ Generated content goes live with no human review. Leave off to create drafts you approve first.', 'dennis-content-builder' )
+					),
+					e( 'p', { className: 'dcb-muted' },
+						__( 'Last run: ', 'dennis-content-builder' ) + fmt( state.last_run ) +
+						__( ' · Next: ', 'dennis-content-builder' ) + fmt( state.next_run ) +
+						__( ' (updates after Save)', 'dennis-content-builder' )
+					)
+				),
+
+				e( 'hr', { className: 'dcb-sep' } ),
+				e( 'p', { className: 'dcb-muted' }, __( 'Run now uses your last saved settings — Save first if you just made changes.', 'dennis-content-builder' ) ),
 				e( 'div', { className: 'dcb-actions' },
-					e( Button, { variant: 'primary', onClick: function () {
-						setEditing( null );
-					} }, __( 'Done', 'dennis-content-builder' ) )
+					e( Button, {
+						variant: 'secondary',
+						onClick: function () {
+							runNow( editing );
+						},
+						isBusy: running,
+						disabled: running,
+					}, __( 'Run now', 'dennis-content-builder' ) ),
+					runResult && runResult.ok && e( 'a', { href: runResult.edit, target: '_blank', rel: 'noreferrer' },
+						runResult.published ? __( 'Published — open', 'dennis-content-builder' ) : __( 'Draft created — open', 'dennis-content-builder' )
+					),
+					runResult && ! runResult.ok && e( 'span', { className: 'dcb-test-fail' }, runResult.message ),
+					e( Button, { variant: 'primary', onClick: closeModal }, __( 'Done', 'dennis-content-builder' ) )
 				)
 			);
 		}

@@ -25,6 +25,9 @@ final class Profiles {
 	/** Post types enabled by default before the admin configures anything. */
 	private const DEFAULT_ENABLED = array( 'page', 'post' );
 
+	/** Weekday keys used by the scheduler (matches DateTime 'N' order: Mon..Sun). */
+	public const WEEKDAYS = array( 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun' );
+
 	/** Internal post types that are never AI-managed. */
 	private const DENY = array(
 		'attachment',
@@ -91,18 +94,50 @@ final class Profiles {
 	 * A type's profile, merged with defaults. Block restrictions are
 	 * global (see allowed_blocks()), not part of the per-type profile.
 	 *
-	 * @return array{enabled:bool, instructions:string}
+	 * @return array{enabled:bool, instructions:string, schedule:array}
 	 */
 	public static function get( string $type ): array {
 		$all   = self::all();
 		$saved = isset( $all[ $type ] ) && is_array( $all[ $type ] ) ? $all[ $type ] : array();
+		$sched = isset( $saved['schedule'] ) && is_array( $saved['schedule'] ) ? $saved['schedule'] : array();
 
 		return array(
 			'enabled'      => array_key_exists( 'enabled', $saved )
 				? (bool) $saved['enabled']
 				: in_array( $type, self::DEFAULT_ENABLED, true ),
 			'instructions' => isset( $saved['instructions'] ) ? (string) $saved['instructions'] : '',
+			'schedule'     => array(
+				'enabled'      => ! empty( $sched['enabled'] ),
+				'days'         => isset( $sched['days'] ) && is_array( $sched['days'] )
+					? array_values( array_intersect( $sched['days'], self::WEEKDAYS ) )
+					: array(),
+				'time'         => isset( $sched['time'] ) && preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', (string) $sched['time'] )
+					? $sched['time']
+					: '09:00',
+				'auto_publish' => ! empty( $sched['auto_publish'] ),
+				'brief'        => isset( $sched['brief'] ) ? (string) $sched['brief'] : '',
+			),
 		);
+	}
+
+	public static function schedule_for( string $type ): array {
+		return self::get( $type )['schedule'];
+	}
+
+	/**
+	 * Eligible types with an active schedule (enabled + at least one day).
+	 *
+	 * @return string[]
+	 */
+	public static function scheduled_types(): array {
+		$out = array();
+		foreach ( self::candidate_post_types() as $pt ) {
+			$p = self::get( $pt->name );
+			if ( $p['enabled'] && $p['schedule']['enabled'] && $p['schedule']['days'] ) {
+				$out[] = $pt->name;
+			}
+		}
+		return $out;
 	}
 
 	public static function is_eligible( string $type ): bool {
@@ -165,9 +200,20 @@ final class Profiles {
 				continue;
 			}
 
+			$sched = is_array( $profile['schedule'] ?? null ) ? $profile['schedule'] : array();
+			$days  = array_values( array_intersect( array_map( 'sanitize_key', (array) ( $sched['days'] ?? array() ) ), self::WEEKDAYS ) );
+			$time  = ( isset( $sched['time'] ) && preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', (string) $sched['time'] ) ) ? (string) $sched['time'] : '09:00';
+
 			$clean[ $slug ] = array(
 				'enabled'      => ! empty( $profile['enabled'] ),
 				'instructions' => sanitize_textarea_field( (string) ( $profile['instructions'] ?? '' ) ),
+				'schedule'     => array(
+					'enabled'      => ! empty( $sched['enabled'] ),
+					'days'         => $days,
+					'time'         => $time,
+					'auto_publish' => ! empty( $sched['auto_publish'] ),
+					'brief'        => sanitize_textarea_field( (string) ( $sched['brief'] ?? '' ) ),
+				),
 			);
 		}
 

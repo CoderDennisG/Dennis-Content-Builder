@@ -4,10 +4,12 @@ declare(strict_types=1);
 namespace DCB\Api;
 
 use DCB\Ai\Orchestrator;
+use DCB\Ai\Scheduler;
 use DCB\Content\Conversations;
 use DCB\Content\Profiles;
 use DCB\Plugin;
 use DCB\Support\Capabilities;
+use DCB\Support\SystemUser;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -85,6 +87,32 @@ final class Routes {
 				),
 			)
 		);
+
+		register_rest_route(
+			'dcb/v1',
+			'/run-schedule',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'run_schedule' ),
+				'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+			)
+		);
+	}
+
+	public function run_schedule( WP_REST_Request $request ) {
+		$slug = sanitize_key( (string) $request->get_param( 'post_type' ) );
+
+		if ( function_exists( 'set_time_limit' ) ) {
+			set_time_limit( 300 );
+		}
+
+		$result = Scheduler::run_now( $slug );
+
+		if ( isset( $result['error'] ) ) {
+			return new WP_Error( 'dcb_run_failed', $result['error'], array( 'status' => 400 ) );
+		}
+
+		return new WP_REST_Response( $result, 200 );
 	}
 
 	public function get_settings(): WP_REST_Response {
@@ -128,6 +156,9 @@ final class Routes {
 			Profiles::save_allowed_blocks( $allowed_blocks );
 		}
 
+		// Re-arm scheduled events to match the saved schedules.
+		Scheduler::sync_all();
+
 		return new WP_REST_Response( $this->settings_payload(), 200 );
 	}
 
@@ -152,6 +183,8 @@ final class Routes {
 			$profiles[ $pt->name ] = Profiles::get( $pt->name );
 		}
 
+		$system_user = get_user_by( 'id', SystemUser::id() );
+
 		return array(
 			'model'          => $settings['model'],
 			'models'         => Plugin::models(),
@@ -164,6 +197,10 @@ final class Routes {
 			'profiles'       => $profiles,
 			'block_catalog'  => Profiles::block_catalog(),
 			'allowed_blocks' => Profiles::allowed_blocks() ?? array(),
+			'weekdays'       => Profiles::WEEKDAYS,
+			'timezone'       => wp_timezone_string(),
+			'schedule_state' => Scheduler::state(),
+			'system_user'    => $system_user ? $system_user->display_name : '',
 		);
 	}
 

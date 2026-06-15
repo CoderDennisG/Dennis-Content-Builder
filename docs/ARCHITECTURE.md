@@ -131,6 +131,12 @@ Per tier: Full-tier blocks get the complete `style` object; Attributes-tier bloc
 
 Enforcement is at every entry point, not just the prompt: `list_content`/`read_content`/`create_draft`/`update_content` all check `Profiles::is_eligible()` and apply the global `Profiles::allowed_blocks()`, and capability checks use each post type object's own `cap`. Managed by `DCB\Content\Profiles`; edited from the settings page (Allowed Blocks + Post Types tabs).
 
+## Scheduled auto-creation
+
+Per type, an admin can schedule automatic creation on specific weekdays at a set time (`schedule` block on the profile: `enabled`, `days[]`, `time`, `auto_publish`, `brief`). `DCB\Ai\Scheduler` computes the next matching occurrence in the site timezone and arms a **self-rearming `wp_schedule_single_event`** — when it fires it re-arms the next one — so timing is exact under a real server cron (WP Engine). A daily resync event self-heals dropped events; `sync_all()` re-arms on save/activation. Runs execute headless via `Orchestrator::run_scheduled()` (no streaming, single creation) as a dedicated `DCB\Support\SystemUser` (an internal `editor`-role account), with every run audit-logged.
+
+**Auto-publish is the one scoped exception to "the AI never publishes"** — see docs/RULES.md. The model still only drafts; the scheduler publishes afterward, only when that type's `auto_publish` is on. A "Run now" REST route (`/dcb/v1/run-schedule`, `manage_options`) triggers an immediate run for testing — essential on environments where cron isn't firing locally.
+
 ## Builder adapter contract
 
 ```

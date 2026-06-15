@@ -37,7 +37,7 @@ Rules for all code in this plugin — written by humans or AI. If a rule blocks 
 
 ## AI safety rules (product-level)
 
-1. The AI can **never publish, schedule, or delete** content in v1. Drafts and revisions only.
+1. The AI can **never publish, schedule, or delete** content from the chat. Drafts and revisions only. **Scoped exception (v0.5.0):** *scheduled* auto-creation may publish, but only for a post type whose profile has `auto_publish` explicitly enabled by an admin, and only as a separate step in the scheduler **after** the model has produced a draft. The `create_draft`/`update_content` tools still only ever draft — the model itself never publishes; the scheduler does, on the admin's opt-in. The interactive chat path can never publish under any prompt.
 2. Every AI content change **creates a WP revision first** — undo must always be one click away.
 3. Every tool invocation is **audit-logged** (user, time, tool, target, conversation).
 4. The tool list is an **allowlist defined in code** — no dynamic tool registration from options/DB.

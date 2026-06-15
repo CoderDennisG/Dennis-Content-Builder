@@ -5,6 +5,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-13
+
+### Added
+- Scheduled auto-creation, per post type: pick specific weekdays and a time (e.g. Mon/Wed/Fri at 6:00 PM) in the type's popup, give it a standing brief, and the assistant creates a new item on that schedule. Uses precise self-rearming timed events in the site timezone (exact under a real server cron such as WP Engine).
+- "Run now" button in the popup to fire a scheduled type immediately (testing, and for environments where cron doesn't fire locally).
+- Scheduled runs execute headless as a dedicated, plugin-provisioned "Content Builder" system user, attributing automated drafts to it; every run is audit-logged.
+- Per-type **auto-publish** option: a scheduled run may publish its result automatically. Off by default.
+
+### Security
+- Documented the auto-publish exception in docs/RULES.md: the `create_draft`/`update_content` tools still only ever draft and the interactive chat can never publish; publishing happens only in the scheduled path, only for types an admin explicitly opted in, as a step after the model produces the draft.
+
+### Notes
+- Custom-field (ACF/meta) editing moves to v0.6.0.
+
 ## [0.4.3] - 2026-06-13
 
 ### Changed
