@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace DCB\Content;
+namespace Denise\Content;
 
 use WP_Post_Type;
 
@@ -10,20 +10,26 @@ use WP_Post_Type;
  * block subset. One engine, one model — the profile is what makes the
  * assistant behave differently per post type.
  *
- * Stored in option dcb_profiles keyed by post type slug:
+ * Stored in option denise_profiles keyed by post type slug:
  *   { enabled: bool, instructions: string, allowed_blocks: string[] }
  *
  * Custom fields (v0.5.0) will extend this shape; not handled here yet.
  */
 final class Profiles {
 
-	public const OPTION = 'dcb_profiles';
+	public const OPTION = 'denise_profiles';
 
 	/** Global allowed-block list (applies to every post type). */
-	public const BLOCKS_OPTION = 'dcb_allowed_blocks';
+	public const BLOCKS_OPTION = 'denise_allowed_blocks';
 
 	/** Post types enabled by default before the admin configures anything. */
 	private const DEFAULT_ENABLED = array( 'page', 'post' );
+
+	/** Page builders a post type can be assigned to. */
+	public const BUILDERS = array( 'gutenberg', 'elementor' );
+
+	/** Builder used when a type has no explicit choice. */
+	public const DEFAULT_BUILDER = 'gutenberg';
 
 	/** Weekday keys used by the scheduler (matches DateTime 'N' order: Mon..Sun). */
 	public const WEEKDAYS = array( 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun' );
@@ -55,16 +61,16 @@ final class Profiles {
 	 */
 	public static function block_catalog(): array {
 		return array(
-			'heading'   => __( 'Heading', 'dennis-content-builder' ),
-			'paragraph' => __( 'Paragraph', 'dennis-content-builder' ),
-			'list'      => __( 'List', 'dennis-content-builder' ),
-			'quote'     => __( 'Quote', 'dennis-content-builder' ),
-			'image'     => __( 'Image', 'dennis-content-builder' ),
-			'button'    => __( 'Button', 'dennis-content-builder' ),
-			'columns'   => __( 'Columns', 'dennis-content-builder' ),
-			'group'     => __( 'Group / section', 'dennis-content-builder' ),
-			'separator' => __( 'Separator', 'dennis-content-builder' ),
-			'spacer'    => __( 'Spacer', 'dennis-content-builder' ),
+			'heading'   => __( 'Heading', 'denise' ),
+			'paragraph' => __( 'Paragraph', 'denise' ),
+			'list'      => __( 'List', 'denise' ),
+			'quote'     => __( 'Quote', 'denise' ),
+			'image'     => __( 'Image', 'denise' ),
+			'button'    => __( 'Button', 'denise' ),
+			'columns'   => __( 'Columns', 'denise' ),
+			'group'     => __( 'Group / section', 'denise' ),
+			'separator' => __( 'Separator', 'denise' ),
+			'spacer'    => __( 'Spacer', 'denise' ),
 		);
 	}
 
@@ -106,6 +112,9 @@ final class Profiles {
 				? (bool) $saved['enabled']
 				: in_array( $type, self::DEFAULT_ENABLED, true ),
 			'instructions' => isset( $saved['instructions'] ) ? (string) $saved['instructions'] : '',
+			'builder'      => isset( $saved['builder'] ) && in_array( $saved['builder'], self::BUILDERS, true )
+				? (string) $saved['builder']
+				: self::DEFAULT_BUILDER,
 			'fields'       => isset( $saved['fields'] ) && is_array( $saved['fields'] )
 				? array_values( array_map( 'strval', $saved['fields'] ) )
 				: array(),
@@ -152,6 +161,54 @@ final class Profiles {
 		return self::get( $type )['enabled'];
 	}
 
+	/**
+	 * Which editor built this post: 'elementor', 'blocks', 'thrive' or
+	 * 'classic'. Elementor wins when its flag is set (its layout is what
+	 * renders, whatever post_content holds); Thrive Architect keeps its layout
+	 * in meta and may leave post_content empty, so it is checked before the
+	 * empty-content case. An empty post on a block-editor type counts as
+	 * 'blocks' (a Gutenberg page waiting to be written).
+	 */
+	public static function editor_of( \WP_Post $post ): string {
+		if ( 'builder' === get_post_meta( $post->ID, '_elementor_edit_mode', true ) ) {
+			return 'elementor';
+		}
+		if ( '' !== (string) get_post_meta( $post->ID, 'tve_updated_post', true ) || get_post_meta( $post->ID, 'tcb_editor_enabled', true ) ) {
+			return 'thrive';
+		}
+		if ( has_blocks( $post ) ) {
+			return 'blocks';
+		}
+		if ( '' === trim( (string) $post->post_content ) && use_block_editor_for_post_type( $post->post_type ) ) {
+			return 'blocks';
+		}
+		return 'classic';
+	}
+
+	/**
+	 * The builder gate: Denise only reads and edits content built with
+	 * Elementor or the block editor. Enforced in the tool layer (every content
+	 * read/write tool) and mirrored by the front-end launcher, so the toolbar
+	 * never offers a page the tools would refuse.
+	 */
+	public static function is_supported_build( \WP_Post $post ): bool {
+		return in_array( self::editor_of( $post ), array( 'elementor', 'blocks' ), true );
+	}
+
+	/** Human label for an editor id, for error messages shown to the user. */
+	public static function editor_label( string $editor ): string {
+		switch ( $editor ) {
+			case 'elementor':
+				return 'Elementor';
+			case 'blocks':
+				return 'the block editor';
+			case 'thrive':
+				return 'Thrive Architect';
+			default:
+				return 'the classic editor';
+		}
+	}
+
 	/** @return string[] Eligible post type slugs. */
 	public static function eligible_types(): array {
 		$eligible = array();
@@ -165,6 +222,32 @@ final class Profiles {
 
 	public static function instructions( string $type ): string {
 		return trim( self::get( $type )['instructions'] );
+	}
+
+	/**
+	 * Which builder should render new content for this type.
+	 *
+	 * Returns the admin's per-type choice, overridable via the
+	 * `denise_post_type_builder` filter, but falls back to Gutenberg whenever
+	 * Elementor 4.3+ (with its abilities module) isn't available — so
+	 * a stale 'elementor' setting can never break content creation.
+	 */
+	public static function builder_for( string $type ): string {
+		$builder = self::get( $type )['builder'];
+
+		/**
+		 * Filters the builder chosen for a post type.
+		 *
+		 * @param string $builder One of self::BUILDERS.
+		 * @param string $type    Post type slug.
+		 */
+		$builder = (string) apply_filters( 'denise_post_type_builder', $builder, $type );
+
+		if ( 'elementor' === $builder && \Denise\Adapters\ElementorAdapter::is_available() ) {
+			return 'elementor';
+		}
+
+		return self::DEFAULT_BUILDER;
 	}
 
 	/**
@@ -214,9 +297,14 @@ final class Profiles {
 
 			$fields = array_values( array_map( 'sanitize_text_field', (array) ( $profile['fields'] ?? array() ) ) );
 
+			$builder = ( isset( $profile['builder'] ) && in_array( $profile['builder'], self::BUILDERS, true ) )
+				? (string) $profile['builder']
+				: self::DEFAULT_BUILDER;
+
 			$clean[ $slug ] = array(
 				'enabled'      => ! empty( $profile['enabled'] ),
 				'instructions' => sanitize_textarea_field( (string) ( $profile['instructions'] ?? '' ) ),
+				'builder'      => $builder,
 				'fields'       => $fields,
 				'schedule'     => array(
 					'enabled'      => ! empty( $sched['enabled'] ),

@@ -1,16 +1,16 @@
 <?php
 declare(strict_types=1);
 
-namespace DCB\Support;
+namespace Denise\Support;
 
 /**
- * The dcb_use_chat capability gates the chat UI and the /chat REST
+ * The denise_use_chat capability gates the chat UI and the /chat REST
  * route. Content tools still re-check edit_post/edit_posts per call —
  * this capability only controls who sees the assistant at all.
  */
 final class Capabilities {
 
-	public const USE_CHAT = 'dcb_use_chat';
+	public const USE_CHAT = 'denise_use_chat';
 
 	private const DEFAULT_ROLES = array( 'administrator', 'editor' );
 

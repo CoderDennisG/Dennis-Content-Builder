@@ -1,182 +1,417 @@
-.dcb-settings-app {
-	max-width: 720px;
-	margin-top: 16px;
+/**
+ * Denise settings page. MEA palette (from the site's Elementor kit):
+ * forest #37463d, teal #5db3a6, coral #cc6e4a (button shade of #d96e51),
+ * cream #fcfaed, sand #e9dfc7, gold #fdb740, sage #90a571, ink #332e31.
+ * Mobile-first: base = narrow, min-width queries scale up.
+ *
+ * Form controls are @wordpress/components; their accent colour is driven
+ * through the --wp-components-color-accent custom properties, so primary
+ * buttons, checkboxes, toggles, focus rings and the active tab all pick
+ * up coral without fighting core's selectors.
+ */
+
+.denise-settings-wrap {
+	--d-forest: #37463d;
+	--d-forest-deep: #2b3831;
+	--d-teal: #5db3a6;
+	--d-accent: #cc6e4a;
+	--d-accent-hover: #b85e3d;
+	--d-accent-soft: #fbeee8;
+	--d-cream: #fcfaed;
+	--d-sand: #e9dfc7;
+	--d-sand-soft: #f4eedc;
+	--d-gold: #fdb740;
+	--d-sage: #90a571;
+	--d-ink: #332e31;
+	--d-muted: #69635d;
+	--d-surface: #fff;
+	--d-radius: 16px;
+	--d-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+
+	--wp-components-color-accent: var( --d-accent );
+	--wp-components-color-accent-darker-10: var( --d-accent-hover );
+	--wp-components-color-accent-darker-20: #a3522f;
+	--wp-components-color-accent-inverted: #fff;
+
+	max-width: 860px;
+	margin-top: 12px;
+	color: var( --d-ink );
+	font-family: var( --d-font );
 }
 
-.dcb-card-title {
+/* ---- Header band (matches the chat header) ---------------------------- */
+
+.denise-settings-head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 14px 16px;
+	background: var( --d-forest );
+	color: #fff;
+	border-radius: var( --d-radius ) var( --d-radius ) 0 0;
+}
+
+.denise-settings-head .denise-avatar {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: var( --d-accent );
+	color: #fff;
+	font-weight: 700;
+	font-size: 18px;
+	line-height: 1;
+}
+
+.denise-settings-head-title {
+	font-weight: 600;
+	font-size: 16px;
+	line-height: 1.2;
+}
+
+.denise-settings-head-sub {
+	margin-top: 2px;
+	color: var( --d-sand );
+	font-size: 12px;
+	line-height: 1.3;
+}
+
+.denise-settings-app {
+	padding: 4px 12px 16px;
+	background: var( --d-cream );
+	border: 1px solid var( --d-sand );
+	border-top: 0;
+	border-radius: 0 0 var( --d-radius ) var( --d-radius );
+	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.04 ), 0 10px 30px rgba( 51, 46, 49, 0.06 );
+}
+
+/* ---- Tabs -------------------------------------------------------------- */
+
+.denise-settings-app .denise-tabs .components-tab-panel__tabs {
+	gap: 4px;
+	margin: 0 0 4px;
+	border-bottom: 1px solid var( --d-sand );
+}
+
+.denise-settings-app .components-tab-panel__tabs-item {
+	height: 44px;
+	padding: 0 12px;
+	color: var( --d-muted );
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.denise-settings-app .components-tab-panel__tabs-item:hover {
+	color: var( --d-ink );
+}
+
+.denise-settings-app .components-tab-panel__tabs-item.is-active {
+	color: var( --d-forest );
+	box-shadow: inset 0 -3px 0 0 var( --d-accent );
+}
+
+/* ---- Cards ------------------------------------------------------------- */
+
+.denise-settings-app .components-card {
+	margin-top: 14px;
+	border: 1px solid var( --d-sand );
+	border-radius: 14px;
+	box-shadow: none;
+	background: var( --d-surface );
+	overflow: hidden;
+}
+
+.denise-settings-app .components-card__header {
+	padding: 12px 16px;
+	border-bottom: 1px solid var( --d-sand-soft );
+	background: var( --d-sand-soft );
+}
+
+.denise-settings-app .components-card__body {
+	padding: 16px;
+}
+
+.denise-card-title {
 	margin: 0;
+	color: var( --d-forest );
 	font-size: 14px;
 	font-weight: 600;
+	letter-spacing: 0.01em;
 }
 
-.dcb-card-spaced {
+.denise-card-spaced {
 	margin-top: 16px;
 }
 
-.dcb-field {
+/* ---- Fields ------------------------------------------------------------ */
+
+.denise-field {
 	margin-top: 16px;
 }
 
-.dcb-actions {
-	margin-top: 16px;
-}
-
-.dcb-muted {
-	margin: 12px 0 0;
-	color: #757575;
+.denise-settings-app .components-base-control__label,
+.denise-settings-app .components-input-control__label {
+	color: var( --d-ink );
+	font-weight: 600;
+	text-transform: none;
 	font-size: 12px;
 }
 
-.dcb-test-ok {
-	color: #008a20;
+.denise-settings-app .components-base-control__help {
+	color: var( --d-muted );
+}
+
+.denise-settings-app .components-text-control__input,
+.denise-settings-app .components-select-control__input,
+.denise-settings-app .components-textarea-control__input,
+.denise-settings-app .components-input-control__backdrop {
+	border-color: var( --d-sand );
+	border-radius: 8px;
+}
+
+.denise-settings-app .components-text-control__input:focus,
+.denise-settings-app .components-select-control__input:focus,
+.denise-settings-app .components-textarea-control__input:focus {
+	border-color: var( --d-accent );
+	box-shadow: 0 0 0 1px var( --d-accent );
+}
+
+/* ---- Buttons ----------------------------------------------------------- */
+
+.denise-settings-app .components-button {
+	border-radius: 999px;
+}
+
+.denise-settings-app .components-button.is-primary {
+	background: var( --d-accent );
+	color: #fff;
+	box-shadow: none;
+}
+
+.denise-settings-app .components-button.is-primary:hover:not( :disabled ),
+.denise-settings-app .components-button.is-primary:focus:not( :disabled ) {
+	background: var( --d-accent-hover );
+	color: #fff;
+}
+
+.denise-settings-app .components-button.is-secondary {
+	color: var( --d-forest );
+	box-shadow: inset 0 0 0 1px var( --d-forest );
+}
+
+.denise-settings-app .components-button.is-secondary:hover:not( :disabled ) {
+	background: var( --d-sand-soft );
+	color: var( --d-forest-deep );
+	box-shadow: inset 0 0 0 1px var( --d-forest-deep );
+}
+
+.denise-settings-app .components-button.is-tertiary,
+.denise-settings-app .components-button.is-link {
+	color: var( --d-forest );
+}
+
+.denise-actions {
+	margin-top: 16px;
+}
+
+/* ---- Status text ------------------------------------------------------- */
+
+.denise-muted {
+	margin: 12px 0 0;
+	color: var( --d-muted );
+	font-size: 12px;
+}
+
+.denise-test-ok {
+	color: #4f7a3c;
 	font-weight: 600;
 }
 
-.dcb-test-fail {
+.denise-test-fail {
 	color: #b32d2e;
 	font-weight: 600;
 }
 
-.dcb-test-hint {
-	color: #757575;
+.denise-test-hint {
+	color: var( --d-muted );
 	font-style: italic;
 }
 
-.dcb-intro {
-	margin: 8px 0 16px;
+.denise-intro {
+	margin: 10px 0 4px;
 }
 
-.dcb-subhead {
+.denise-subhead {
 	margin: 0 0 4px;
+	color: var( --d-forest );
 	font-weight: 600;
 }
 
-.dcb-block-grid {
+.denise-pill {
+	margin-left: auto;
+	padding: 2px 10px;
+	border-radius: 999px;
+	background: var( --d-sand-soft );
+	color: var( --d-forest );
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+}
+
+.denise-tabs {
+	margin-top: 8px;
+}
+
+/* ---- Allowed blocks grid ---------------------------------------------- */
+
+.denise-block-grid {
 	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 14px 32px;
+	grid-template-columns: 1fr;
+	gap: 12px 32px;
 	margin-top: 12px;
 	padding: 4px 0;
 }
 
-.dcb-block-grid .components-base-control {
+.denise-block-grid .components-base-control {
 	margin-bottom: 0;
 }
 
-.dcb-pill {
-	margin-left: auto;
-	font-size: 11px;
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
-	color: #50575e;
-	background: #f0f0f1;
-	border-radius: 10px;
-	padding: 2px 10px;
-}
+/* ---- Post types list -------------------------------------------------- */
 
-.dcb-tabs {
-	margin-top: 8px;
-}
-
-/* Post Types compact list */
-.dcb-type-list {
+.denise-type-list {
 	padding: 4px 0;
 }
 
-.dcb-type-row {
+.denise-settings-app .components-card__body.denise-type-list {
+	padding: 4px 0;
+}
+
+.denise-type-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
-	padding: 8px 16px;
-	border-bottom: 1px solid #f0f0f1;
+	padding: 10px 16px;
+	border-bottom: 1px solid var( --d-sand-soft );
 }
 
-.dcb-type-row:last-child {
+.denise-type-row:last-child {
 	border-bottom: 0;
 }
 
-.dcb-type-main {
+.denise-type-main {
 	display: flex;
 	align-items: center;
 	gap: 12px;
 }
 
-.dcb-guidance-btn.dcb-has-guidance {
-	color: #2271b1;
+.denise-guidance-btn.denise-has-guidance {
+	color: var( --d-accent-hover );
 }
 
-.dcb-guidance-modal {
+.denise-guidance-modal {
 	max-width: 600px;
 }
 
-.dcb-guidance-modal .dcb-actions {
-	margin-top: 16px;
+.denise-guidance-modal .denise-actions {
 	display: flex;
 	align-items: center;
-	gap: 12px;
 	justify-content: flex-end;
+	gap: 12px;
+	margin-top: 16px;
 }
 
-.dcb-sep {
-	border: 0;
-	border-top: 1px solid #e0e0e0;
+.denise-sep {
 	margin: 20px 0;
+	border: 0;
+	border-top: 1px solid var( --d-sand );
 }
 
-.dcb-sched-label,
-.dcb-sched .dcb-field {
+/* ---- Schedule ---------------------------------------------------------- */
+
+.denise-sched-label,
+.denise-sched .denise-field {
 	margin-top: 14px;
 }
 
-.dcb-sched-label {
-	font-weight: 600;
+.denise-sched-label {
 	margin-bottom: 6px;
+	font-weight: 600;
 }
 
-.dcb-day-row {
+.denise-day-row {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 }
 
-.dcb-day {
+.denise-day {
 	min-width: 48px;
 	justify-content: center;
 }
 
-.dcb-warn {
+.denise-warn {
 	margin: 8px 0 0;
 	padding: 8px 12px;
-	background: #fcf9e8;
-	border: 1px solid #dba617;
-	border-radius: 4px;
+	border: 1px solid var( --d-gold );
+	border-radius: 10px;
+	background: #fff8e6;
+	color: #6b4e00;
 	font-size: 12px;
-	color: #645417;
 }
 
-.dcb-field-list {
-	margin-top: 8px;
+/* ---- Custom fields list ------------------------------------------------ */
+
+.denise-field-list {
 	max-height: 220px;
-	overflow-y: auto;
-	border: 1px solid #f0f0f1;
-	border-radius: 4px;
+	margin-top: 8px;
 	padding: 8px 12px;
+	overflow-y: auto;
+	border: 1px solid var( --d-sand );
+	border-radius: 10px;
+	background: var( --d-surface );
 }
 
-.dcb-field-top {
+.denise-field-top {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 }
 
-.dcb-field-tag,
-.dcb-field-sub {
+.denise-field-tag,
+.denise-field-sub {
+	color: var( --d-muted );
 	font-size: 11px;
-	color: #757575;
 }
 
-.dcb-field-sub {
+.denise-field-sub {
 	padding: 2px 0;
+}
+
+/* ---- Wider screens ----------------------------------------------------- */
+
+@media ( min-width: 783px ) {
+	.denise-settings-wrap {
+		margin-top: 16px;
+	}
+
+	.denise-settings-head {
+		padding: 16px 20px;
+	}
+
+	.denise-settings-app {
+		padding: 8px 20px 20px;
+	}
+
+	.denise-settings-app .components-card__body {
+		padding: 20px;
+	}
+
+	.denise-block-grid {
+		grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	}
 }

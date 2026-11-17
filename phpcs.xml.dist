@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
-<ruleset name="Dennis Content Builder">
+<ruleset name="Denise">
 	<description>WPCS for the plugin. Pragmatic exclusions are documented inline.</description>
 
-	<file>dennis-content-builder.php</file>
+	<file>denise.php</file>
 	<file>uninstall.php</file>
 	<file>includes</file>
 
@@ -13,7 +13,7 @@
 	<config name="minimum_wp_version" value="6.6"/>
 
 	<rule ref="WordPress-Core">
-		<!-- PSR-4 autoloading: DCB\Admin\Settings lives in Settings.php, not class-settings.php. -->
+		<!-- PSR-4 autoloading: Denise\Admin\Settings lives in Settings.php, not class-settings.php. -->
 		<exclude name="WordPress.Files.FileName"/>
 		<!-- declare(strict_types=1) sits on the open tag line by PSR convention. -->
 		<exclude name="Squiz.Commenting.FileComment.Missing"/>
@@ -30,7 +30,7 @@
 	<rule ref="WordPress.WP.I18n">
 		<properties>
 			<property name="text_domain" type="array">
-				<element value="dennis-content-builder"/>
+				<element value="denise"/>
 			</property>
 		</properties>
 	</rule>

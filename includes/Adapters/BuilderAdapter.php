@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace DCB\Adapters;
+namespace Denise\Adapters;
 
 use WP_Post;
 
@@ -19,6 +19,22 @@ interface BuilderAdapter {
 
 	/** Neutral element tree -> post_content. */
 	public function serialize( array $elements ): string;
+
+	/**
+	 * Post meta to set when first inserting a post for this builder.
+	 * Gutenberg needs none; Elementor needs its edit-mode flags. Returned
+	 * as a wp_insert_post() 'meta_input' map.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function insert_meta( string $post_type ): array;
+
+	/**
+	 * Persist an element tree onto an existing post in this builder's own
+	 * storage. Gutenberg writes post_content; Elementor writes _elementor_data
+	 * meta. Throws on failure so the tool layer reports it to the model.
+	 */
+	public function persist( int $post_id, array $elements ): void;
 
 	/** Human-readable adapter name. */
 	public function label(): string;

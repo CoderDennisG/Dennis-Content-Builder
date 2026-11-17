@@ -1,21 +1,21 @@
 <?php
 declare(strict_types=1);
 
-namespace DCB\Content;
+namespace Denise\Content;
 
 /**
  * Custom-field discovery, read, and write across ACF and native
  * registered meta.
  *
- * Schema is recursive (repeaters / groups / flexible content nest), so
- * the engine can READ the full tree today. WRITING is enabled only for
- * the reliable scalar/choice types in this cut; complex types are
- * returned as read-only until their write path is proven (see
- * docs/ROADMAP.md v0.6.0 phasing).
+ * Schema is recursive (repeaters / groups / flexible content nest) and the
+ * engine reads the full tree. Writing covers scalars, choices, repeaters,
+ * groups and post references (validated row by row against the schema;
+ * RULES.md rule 11). Still read-only: flexible content, images, files,
+ * galleries, taxonomy and user fields.
  */
 final class Fields {
 
-	/** ACF field types the AI may write in this cut. */
+	/** ACF field types the AI may write. */
 	private const WRITABLE_ACF = array(
 		'text',
 		'textarea',
@@ -34,7 +34,15 @@ final class Fields {
 		'date_time_picker',
 		'time_picker',
 		'color_picker',
+		'repeater',
+		'group',
+		'post_object',
+		'relationship',
+		'page_link',
 	);
+
+	/** Types whose write replaces every existing row at once (confirm first on an existing value). */
+	private const REPLACES_ROWS = array( 'repeater' );
 
 	private static function acf_active(): bool {
 		return function_exists( 'acf_get_field_groups' ) && function_exists( 'acf_get_fields' );
@@ -91,6 +99,12 @@ final class Fields {
 			$node['multiple'] = ! empty( $field['multiple'] ) || 'checkbox' === $type;
 		}
 
+		if ( in_array( $type, array( 'post_object', 'relationship', 'page_link' ), true ) ) {
+			$node['post_type'] = array_values( array_filter( array_map( 'strval', (array) ( $field['post_type'] ?? array() ) ) ) );
+			// Relationship fields are always lists; post_object/page_link only when "multiple" is on.
+			$node['multiple'] = 'relationship' === $type || ! empty( $field['multiple'] );
+		}
+
 		if ( in_array( $type, array( 'repeater', 'group' ), true ) && ! empty( $field['sub_fields'] ) ) {
 			$node['sub_fields'] = array_map( array( self::class, 'normalize_acf' ), $field['sub_fields'] );
 		}
@@ -128,9 +142,9 @@ final class Fields {
 			if ( '_' === substr( (string) $key, 0, 1 ) ) {
 				continue;
 			}
-			$type     = (string) ( $args['type'] ?? 'string' );
-			$scalar   = in_array( $type, array( 'string', 'integer', 'number', 'boolean' ), true );
-			$nodes[]  = array(
+			$type    = (string) ( $args['type'] ?? 'string' );
+			$scalar  = in_array( $type, array( 'string', 'integer', 'number', 'boolean' ), true );
+			$nodes[] = array(
 				'source'   => 'meta',
 				'key'      => (string) $key,
 				'name'     => (string) $key,
@@ -191,7 +205,7 @@ final class Fields {
 			if ( ! in_array( $node['name'], $allowed, true ) ) {
 				continue;
 			}
-			$schema[]               = $node;
+			$schema[]                = $node;
 			$values[ $node['name'] ] = self::read_one( $post_id, $node );
 		}
 
@@ -206,6 +220,27 @@ final class Fields {
 			return get_field( $node['name'], $post_id, false ); // Raw, round-trippable.
 		}
 		return get_post_meta( $post_id, $node['name'], ! empty( $node['single'] ) );
+	}
+
+	/**
+	 * Fields in $tree whose write would replace rows that already exist on
+	 * the post (repeaters with content). The tool layer asks the person
+	 * before such a write. Returns name => current row count.
+	 *
+	 * @return array<string,int>
+	 */
+	public static function replacements( int $post_id, string $post_type, array $tree ): array {
+		$out = array();
+		foreach ( self::discover( $post_type, $post_id ) as $node ) {
+			if ( ! array_key_exists( $node['name'], $tree ) || ! in_array( $node['type'], self::REPLACES_ROWS, true ) ) {
+				continue;
+			}
+			$current = self::read_one( $post_id, $node );
+			if ( is_array( $current ) && count( $current ) > 0 ) {
+				$out[ $node['name'] ] = count( $current );
+			}
+		}
+		return $out;
 	}
 
 	// ------------------------------------------------------------------
@@ -262,7 +297,7 @@ final class Fields {
 		}
 
 		if ( $snapshot ) {
-			update_post_meta( $post_id, '_dcb_field_backup', $snapshot );
+			update_post_meta( $post_id, '_denise_field_backup', $snapshot );
 		}
 
 		return array(
@@ -332,9 +367,90 @@ final class Fields {
 			case 'date_time_picker':
 			case 'time_picker':
 				return sanitize_text_field( (string) $value );
+
+			case 'repeater':
+				return is_array( $value ) ? self::validate_rows( $node, $value ) : null;
+
+			case 'group':
+				if ( ! is_array( $value ) ) {
+					return null;
+				}
+				$rows = self::validate_rows( $node, array( $value ) );
+				return $rows ? $rows[0] : null;
+
+			case 'post_object':
+			case 'relationship':
+			case 'page_link':
+				return self::validate_posts( $node, $value );
 		}
 
 		return null;
+	}
+
+	/**
+	 * Repeater/group rows: each row is validated sub-field by sub-field
+	 * against the schema; unknown keys and read-only sub-fields (images,
+	 * files…) are dropped; empty rows are skipped. Rows are keyed by the
+	 * sub-field KEY, which is what update_field() needs for new rows.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function validate_rows( array $node, array $rows ): array {
+		$subs = array();
+		foreach ( (array) ( $node['sub_fields'] ?? array() ) as $sub ) {
+			if ( ! empty( $sub['writable'] ) && 'repeater' !== $sub['type'] && 'group' !== $sub['type'] ) {
+				$subs[ $sub['name'] ] = $sub;
+			}
+		}
+		$out = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$clean = array();
+			foreach ( $subs as $name => $sub ) {
+				if ( ! array_key_exists( $name, $row ) || null === $row[ $name ] || '' === $row[ $name ] ) {
+					continue;
+				}
+				$v = self::validate( $sub, $row[ $name ] );
+				if ( null !== $v ) {
+					$clean[ $sub['key'] ? $sub['key'] : $name ] = $v;
+				}
+			}
+			if ( $clean ) {
+				$out[] = $clean;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Post references: existing posts of the field's allowed types only.
+	 * Returns an int list for multiple fields, one int otherwise; null when
+	 * nothing valid was given.
+	 *
+	 * @param mixed $value
+	 * @return int[]|int|null
+	 */
+	private static function validate_posts( array $node, $value ) {
+		$types = (array) ( $node['post_type'] ?? array() );
+		$ids   = array();
+		foreach ( (array) $value as $v ) {
+			$id = is_array( $v ) ? absint( $v['id'] ?? $v['ID'] ?? 0 ) : absint( $v );
+			if ( ! $id ) {
+				continue;
+			}
+			$post = get_post( $id );
+			if ( ! $post || ( $types && ! in_array( $post->post_type, $types, true ) ) ) {
+				continue;
+			}
+			$ids[] = $id;
+		}
+		$ids = array_values( array_unique( $ids ) );
+		if ( ! $ids ) {
+			return null;
+		}
+		return ! empty( $node['multiple'] ) ? $ids : $ids[0];
 	}
 
 	private static function filter_choices( array $values, array $choices ): array {

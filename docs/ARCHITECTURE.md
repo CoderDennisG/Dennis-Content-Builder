@@ -17,7 +17,7 @@
 └───────────────▲──────────────────────────────────────────┘
                 │ wp REST (nonce + capability checks)
 ┌───────────────┴──────────────────────────────────────────┐
-│  REST API  (namespace: dcb/v1)                           │
+│  REST API  (namespace: denise/v1)                           │
 │  POST /chat        — send a message, get AI actions back │
 │  GET  /conversations/{id} — chat history                 │
 │  GET  /settings, POST /settings (admins only)            │
@@ -98,9 +98,9 @@ Three levels:
 
 1. **Inherit (default).** Elements carry no style; core blocks pick up the theme's design from `theme.json` / Global Styles automatically. The system prompt instructs the AI to style only when asked or clearly warranted.
 2. **Theme presets.** The neutral model's optional `style` object accepts only preset slugs from the active theme's design system — palette colors, font-size scale, spacing scale, alignment (`wide`/`full` only if the theme supports it). At conversation start the plugin reads these via `wp_get_global_settings()` and injects them into the system prompt (slug + name + hex so natural language like "our dark blue" resolves) **and** into the JSON schema as enums — off-palette values are structurally impossible, mirroring the block-vocabulary approach. These serialize to standard block-supports attributes (`backgroundColor`, `fontSize`, `align`, `style.spacing` with `var:preset|…` values), so every choice is editable through Gutenberg's normal sidebar controls and re-resolves on theme switch.
-3. **Per-page custom CSS (guarded).** Each post/page has a custom CSS field stored in post meta (`_dcb_custom_css`), editable by humans through a normal editor panel and writable by the AI through a dedicated tool. Front end: enqueued inline on that page only. Rails:
+3. **Per-page custom CSS (guarded).** Each post/page has a custom CSS field stored in post meta (`_denise_custom_css`), editable by humans through a normal editor panel and writable by the AI through a dedicated tool. Front end: enqueued inline on that page only. Rails:
    - **Presets first.** The system prompt orders the AI to use theme presets whenever they can express the ask; custom CSS is the last resort, not the default.
-   - **Scoped selectors only.** The AI targets only classes it added itself (`dcb-` prefix via the near-universal `className` block support) — never bare element selectors.
+   - **Scoped selectors only.** The AI targets only classes it added itself (`denise-` prefix via the near-universal `className` block support) — never bare element selectors.
    - **Sanitized as untrusted input:** strip JS-in-CSS vectors (`expression()`, `behavior:`, `javascript:` URLs), no `@import`, size cap.
    - **Known trade-off (documented, accepted):** this is the one plugin-dependent feature — content survives plugin removal untouched, but per-page CSS stops being enqueued. All page builders share this; ours degrades gracefully (clean unstyled native blocks remain).
 
@@ -121,29 +121,29 @@ Per tier: Full-tier blocks get the complete `style` object; Attributes-tier bloc
 
 ## Post type profiles
 
-"A different AI per post type" is implemented as one engine + one model with a per-post-type **profile** — never separate AIs. A profile (stored in option `dcb_profiles`, keyed by post type slug) carries:
+"A different AI per post type" is implemented as one engine + one model with a per-post-type **profile** — never separate AIs. A profile (stored in option `denise_profiles`, keyed by post type slug) carries:
 
 - **`enabled`** — eligibility. Disabled types get no sidebar and refuse creation/editing. Defaults: `page`, `post`.
 - **`instructions`** — writing guidance/persona injected into the system prompt. When a post is open the sidebar injects that one type's guidance; the standalone chat injects the catalogue of eligible types.
 - **`fields`** — top-level custom-field names (ACF + native meta) the AI may read/write for this type. See Custom fields below.
 
-**Allowed blocks are global, not per-type** (option `dcb_allowed_blocks`): a subset of the block catalogue, empty = all, applied to every post type. Enforced **structurally** in `Model::sanitize_elements()` (disallowed elements dropped recursively; `raw` exempt) via `Profiles::allowed_blocks()`, and surfaced once to the model in the system prompt — not merely prompted.
+**Allowed blocks are global, not per-type** (option `denise_allowed_blocks`): a subset of the block catalogue, empty = all, applied to every post type. Enforced **structurally** in `Model::sanitize_elements()` (disallowed elements dropped recursively; `raw` exempt) via `Profiles::allowed_blocks()`, and surfaced once to the model in the system prompt — not merely prompted.
 
-Enforcement is at every entry point, not just the prompt: `list_content`/`read_content`/`create_draft`/`update_content` all check `Profiles::is_eligible()` and apply the global `Profiles::allowed_blocks()`, and capability checks use each post type object's own `cap`. Managed by `DCB\Content\Profiles`; edited from the settings page (Allowed Blocks + Post Types tabs).
+Enforcement is at every entry point, not just the prompt: `list_content`/`read_content`/`create_draft`/`update_content` all check `Profiles::is_eligible()` and apply the global `Profiles::allowed_blocks()`, and capability checks use each post type object's own `cap`. Managed by `Denise\Content\Profiles`; edited from the settings page (Allowed Blocks + Post Types tabs).
 
 ## Custom fields
 
-`DCB\Content\Fields` discovers, reads, and writes custom fields from **ACF** (`acf_get_field_groups`/`acf_get_fields`, written via `update_field`) and **native registered meta** (`get_registered_meta_keys`, written via `update_post_meta`). Both are guarded by `function_exists` so the plugin runs with either, both, or neither present.
+`Denise\Content\Fields` discovers, reads, and writes custom fields from **ACF** (`acf_get_field_groups`/`acf_get_fields`, written via `update_field`) and **native registered meta** (`get_registered_meta_keys`, written via `update_post_meta`). Both are guarded by `function_exists` so the plugin runs with either, both, or neither present.
 
 Schema is **recursive** — repeater/group sub-fields and flexible-content layouts are normalized into nested nodes — so the engine reads the full tree today. **Writing is phased:** a fixed `WRITABLE_ACF` set (text/textarea/wysiwyg/number/email/url/choice/true-false/date/color) plus native scalars are validated per type (enum-checked choices, sanitized values) and written; complex types (repeater, group, flexible content, image, file, relationship, post object) are returned read-only and refused on write with a message the model understands. The schema/value engine already handles the full tree, so enabling complex writes later is enablement, not a rebuild.
 
-Exposed to the AI only through the per-type allowlist (`Profiles::allowed_fields()`), via tools `read_fields` (schema + current values) and `update_fields` (validated write). Because WordPress revisions don't snapshot meta, `Fields::write()` backs up prior values to `_dcb_field_backup` before overwriting. Discovery for the settings checklist is served by `GET /dcb/v1/fields`.
+Exposed to the AI only through the per-type allowlist (`Profiles::allowed_fields()`), via tools `read_fields` (schema + current values) and `update_fields` (validated write). Because WordPress revisions don't snapshot meta, `Fields::write()` backs up prior values to `_denise_field_backup` before overwriting. Discovery for the settings checklist is served by `GET /denise/v1/fields`.
 
 ## Scheduled auto-creation
 
-Per type, an admin can schedule automatic creation on specific weekdays at a set time (`schedule` block on the profile: `enabled`, `days[]`, `time`, `auto_publish`, `brief`). `DCB\Ai\Scheduler` computes the next matching occurrence in the site timezone and arms a **self-rearming `wp_schedule_single_event`** — when it fires it re-arms the next one — so timing is exact under a real server cron (WP Engine). A daily resync event self-heals dropped events; `sync_all()` re-arms on save/activation. Runs execute headless via `Orchestrator::run_scheduled()` (no streaming, single creation) as a dedicated `DCB\Support\SystemUser` (an internal `editor`-role account), with every run audit-logged.
+Per type, an admin can schedule automatic creation on specific weekdays at a set time (`schedule` block on the profile: `enabled`, `days[]`, `time`, `auto_publish`, `brief`). `Denise\Ai\Scheduler` computes the next matching occurrence in the site timezone and arms a **self-rearming `wp_schedule_single_event`** — when it fires it re-arms the next one — so timing is exact under a real server cron (WP Engine). A daily resync event self-heals dropped events; `sync_all()` re-arms on save/activation. Runs execute headless via `Orchestrator::run_scheduled()` (no streaming, single creation) as a dedicated `Denise\Support\SystemUser` (an internal `editor`-role account), with every run audit-logged.
 
-**Auto-publish is the one scoped exception to "the AI never publishes"** — see docs/RULES.md. The model still only drafts; the scheduler publishes afterward, only when that type's `auto_publish` is on. A "Run now" REST route (`/dcb/v1/run-schedule`, `manage_options`) triggers an immediate run for testing — essential on environments where cron isn't firing locally.
+**Auto-publish is the one scoped exception to "the AI never publishes"** — see docs/RULES.md. The model still only drafts; the scheduler publishes afterward, only when that type's `auto_publish` is on. A "Run now" REST route (`/denise/v1/run-schedule`, `manage_options`) triggers an immediate run for testing — essential on environments where cron isn't firing locally.
 
 ## Builder adapter contract
 
@@ -156,7 +156,7 @@ interface Builder_Adapter {
 }
 ```
 
-Adapters are registered through a filter (`dcb_register_adapters`) so third-party adapters are possible without touching core plugin code.
+Adapters are registered through a filter (`denise_register_adapters`) so third-party adapters are possible without touching core plugin code.
 
 ## AI integration
 
@@ -175,13 +175,13 @@ Adapters are registered through a filter (`dcb_register_adapters`) so third-part
 | `create_draft` | Create a new page/post as **draft** from a neutral model | Always `post_status = draft` |
 | `update_content` | Replace/patch a page's neutral model | Writes a revision first; never changes status |
 | `search_media` | Find existing media library images | Read-only |
-| `update_page_css` | Write/replace the page's custom CSS (post meta) | Sanitized; `dcb-`-prefixed selectors only; audit-logged |
+| `update_page_css` | Write/replace the page's custom CSS (post meta) | Sanitized; `denise-`-prefixed selectors only; audit-logged |
 
 Explicitly **not** available in v1: publish, delete, users, options/settings, plugins/themes, menus, raw SQL/HTML.
 
 ## Conversations & state
 
-- Conversations stored in a custom table (`{prefix}dcb_conversations` + `{prefix}dcb_messages`) — post meta is too clumsy for chat history.
+- Conversations stored in a custom table (`{prefix}denise_conversations` + `{prefix}denise_messages`) — post meta is too clumsy for chat history.
 - Each AI action that touches content writes an **audit log** row (who, when, tool, post id, conversation id).
 - Editor-sidebar chats are scoped to the open post; admin-page chats are unscoped.
 
@@ -191,7 +191,7 @@ Explicitly **not** available in v1: publish, delete, users, options/settings, pl
 |---|---|
 | API key storage | `wp_options`, never printed to JS/HTML; field is write-only in settings UI (shows last 4 chars) |
 | REST auth | Nonce + `permission_callback` on every route; no public endpoints |
-| Who can chat | New capability `dcb_use_chat` (granted to editors+ by default, filterable) |
+| Who can chat | New capability `denise_use_chat` (granted to editors+ by default, filterable) |
 | Who can configure | `manage_options` only |
 | AI output | Serialized through the adapter, then validated as blocks + `wp_kses_post` before save |
 | Undo | Every `update_content` creates a WP revision; UI exposes one-click restore |
@@ -208,11 +208,11 @@ Explicitly **not** available in v1: publish, delete, users, options/settings, pl
 The WPPB boilerplate currently in place will be reshaped to:
 
 ```
-dennis-content-builder/
-├── dennis-content-builder.php      # bootstrap, constants, autoloader
+denise/
+├── denise.php      # bootstrap, constants, autoloader
 ├── includes/
 │   ├── Admin/                      # settings page, menu registration
-│   ├── Api/                        # REST controllers (dcb/v1)
+│   ├── Api/                        # REST controllers (denise/v1)
 │   ├── Ai/                         # orchestrator, tool registry, prompts
 │   ├── Content/                    # neutral model, validation, audit log
 │   ├── Adapters/                   # Builder_Adapter + GutenbergAdapter
@@ -224,4 +224,4 @@ dennis-content-builder/
 └── docs/
 ```
 
-PHP namespace: `DCB\` with PSR-4 autoloading via Composer. Prefix for hooks/options/db: `dcb_`.
+PHP namespace: `Denise\` with PSR-4 autoloading via Composer. Prefix for hooks/options/db: `denise_`.

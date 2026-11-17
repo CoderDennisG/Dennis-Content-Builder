@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace DCB\Adapters;
+namespace Denise\Adapters;
 
 use WP_Post;
 
@@ -21,6 +21,26 @@ final class GutenbergAdapter implements BuilderAdapter {
 
 	public function label(): string {
 		return 'Gutenberg';
+	}
+
+	public function insert_meta( string $post_type ): array {
+		// Core blocks live in post_content; no builder-specific meta needed.
+		return array();
+	}
+
+	public function persist( int $post_id, array $elements ): void {
+		// wp_update_post saves a revision automatically.
+		$result = wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => $this->serialize( $elements ),
+			),
+			true
+		);
+
+		if ( is_wp_error( $result ) ) {
+			throw new \RuntimeException( esc_html( $result->get_error_message() ) );
+		}
 	}
 
 	// ------------------------------------------------------------------

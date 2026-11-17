@@ -1,0 +1,313 @@
+/**
+ * Front-end Denise panel, opened from the "Denise" admin-bar item.
+ * High z-index so it sits above themes and the Elementor front end, but
+ * below the admin bar (99999) so the toolbar stays clickable.
+ * Mobile-first: base = phone (full width, bottom of the screen);
+ * from 783px it is a 420px panel in the lower-left corner that the user
+ * can drag by its header; the dragged position is remembered (bubble.js).
+ */
+
+#denise-bubble-root {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+/* Chat panel. Default anchor: bottom-left. */
+.denise-bubble-panel {
+	position: fixed;
+	left: 16px;
+	right: 16px;
+	bottom: 16px;
+	z-index: 99998;
+	height: 600px;
+	max-height: calc( 100vh - 78px );
+	background: #fff;
+	border-radius: 16px;
+	box-shadow: 0 16px 48px rgba( 0, 0, 0, 0.28 );
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	font-size: 14px;
+	box-sizing: border-box;
+}
+
+.denise-bubble-panel[hidden] {
+	display: none;
+}
+
+/*
+ * Inside a builder's editor (mode "elementor") there is no admin bar, so a
+ * corner button opens the panel; it hides while the panel is open. The
+ * editor's own panels live on the left, so the panel defaults to the
+ * lower-right there (still draggable; position stored under its own key).
+ */
+.denise-bubble-fab {
+	position: fixed;
+	right: 24px;
+	bottom: 24px;
+	z-index: 99998;
+	width: 48px;
+	height: 48px;
+	border: 0;
+	border-radius: 50%;
+	background: #cc6e4a;
+	color: #fff;
+	font: 700 20px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.28 );
+	cursor: pointer;
+}
+
+.denise-bubble-fab:hover {
+	background: #b85e3d;
+}
+
+.denise-bubble-fab[hidden] {
+	display: none;
+}
+
+/* Once dragged (or restored from storage) the panel is placed by left/top. */
+.denise-bubble-panel.is-placed {
+	right: auto;
+	bottom: auto;
+}
+
+.denise-bubble-panel.is-dragging {
+	user-select: none;
+	box-shadow: 0 24px 64px rgba( 0, 0, 0, 0.36 );
+}
+
+.denise-bubble-panel.is-dragging iframe {
+	pointer-events: none;
+}
+
+.denise-bubble-head {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 12px 16px;
+	background: #cc6e4a;
+	color: #fff;
+	touch-action: none;
+}
+
+.denise-bubble-title {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-weight: 600;
+}
+
+.denise-bubble-title__mark {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: #fff;
+	color: #cc6e4a;
+	font-weight: 700;
+	font-size: 15px;
+}
+
+/* Right side of the header: the chat's history / new-chat buttons, then close. */
+.denise-bubble-right {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex: 0 0 auto;
+}
+
+.denise-bubble-close {
+	border: 0;
+	background: transparent;
+	color: #fff;
+	font-size: 24px;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0 4px;
+	margin-left: 4px;
+	opacity: 0.85;
+}
+
+.denise-bubble-close:hover {
+	opacity: 1;
+}
+
+/*
+ * The chat's action buttons (.denise-head-actions, adopted from chat.js via
+ * actionsHost) sit on the coral header, so they go white; the history
+ * popover they own drops below the header and needs the chat's design
+ * tokens, which chat.css defines on .denise-chat only. Define them on the
+ * panel so everything inside the panel, header included, can use them.
+ */
+.denise-bubble-panel {
+	--d-accent: #cc6e4a;
+	--d-accent-hover: #b85e3d;
+	--d-accent-soft: #fbeee8;
+	--d-forest: #37463d;
+	--d-ink: #332e31;
+	--d-muted: #69635d;
+	--d-surface: #fff;
+	--d-bg: #fcfaed;
+	--d-border: #e9dfc7;
+	--d-radius: 16px;
+	--d-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	--d-mono: Menlo, Consolas, Monaco, "Liberation Mono", monospace;
+}
+
+.denise-bubble-tools:empty {
+	display: none;
+}
+
+.denise-bubble-head .denise-iconbtn {
+	width: 30px;
+	height: 30px;
+	border-radius: 8px;
+	color: rgba( 255, 255, 255, 0.85 );
+}
+
+.denise-bubble-head .denise-iconbtn svg {
+	width: 18px;
+	height: 18px;
+}
+
+.denise-bubble-head .denise-iconbtn:hover,
+.denise-bubble-head .denise-iconbtn[aria-expanded="true"] {
+	background: rgba( 255, 255, 255, 0.18 );
+	color: #fff;
+}
+
+.denise-bubble-head .denise-iconbtn:focus-visible {
+	outline-color: #fff;
+}
+
+.denise-bubble-head .denise-popover {
+	top: calc( 100% + 10px );
+	color: var( --d-ink );
+	font-weight: 400;
+	cursor: auto;
+}
+
+.denise-bubble-notice {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 16px;
+	background: #fff7e6;
+	border-bottom: 1px solid #f0d9a8;
+	color: #6b4e00;
+	font-size: 13px;
+}
+
+.denise-bubble-reload {
+	border: 0;
+	background: #cc6e4a;
+	color: #fff;
+	border-radius: 999px;
+	padding: 4px 12px;
+	cursor: pointer;
+	white-space: nowrap;
+	text-decoration: none;
+	font-size: 13px;
+}
+
+.denise-bubble-reload:hover {
+	background: #b85e3d;
+	color: #fff;
+}
+
+/*
+ * The shared chat (.denise-chat) mounts on .denise-bubble-mount. The panel
+ * head above already carries the identity, so the chat runs headless and
+ * must fill the remaining panel height instead of its viewport default.
+ */
+.denise-bubble-mount {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.denise-bubble-mount.denise-chat {
+	height: auto;
+	min-height: 0;
+	margin-top: 0;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+/*
+ * Theme reset. Front-end themes style p, li and friends globally (font
+ * size, line height, letter spacing); chat.css only sets sizes on the chat
+ * root and relies on inheritance, so inside the panel we pin inheritance
+ * back on for everything inside a message.
+ */
+.denise-bubble-panel .denise-chat {
+	font-size: 14px;
+	line-height: 1.55;
+}
+
+.denise-bubble-panel .denise-msg-content p,
+.denise-bubble-panel .denise-msg-content li,
+.denise-bubble-panel .denise-msg-content ul,
+.denise-bubble-panel .denise-msg-content ol,
+.denise-bubble-panel .denise-msg-content blockquote,
+.denise-bubble-panel .denise-msg-content a,
+.denise-bubble-panel .denise-msg-content strong,
+.denise-bubble-panel .denise-msg-content em,
+.denise-bubble-panel .denise-msg-content table,
+.denise-bubble-panel .denise-msg-content td,
+.denise-bubble-panel .denise-msg-content th {
+	font-family: inherit;
+	font-size: inherit;
+	line-height: inherit;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+.denise-bubble-panel .denise-msg-content h3,
+.denise-bubble-panel .denise-msg-content h4,
+.denise-bubble-panel .denise-msg-content h5,
+.denise-bubble-panel .denise-msg-content h6 {
+	font-family: inherit;
+	font-size: 14px;
+	line-height: 1.3;
+	letter-spacing: normal;
+	text-transform: none;
+}
+
+.denise-bubble-panel .denise-msg-content h3 {
+	font-size: 15px;
+}
+
+.denise-bubble-panel .denise-msg-content code,
+.denise-bubble-panel .denise-msg-content pre {
+	font-size: 12.5px;
+}
+
+@media ( min-width: 783px ) {
+	.denise-bubble-panel {
+		left: 24px;
+		right: auto;
+		bottom: 24px;
+		width: 420px;
+		max-height: calc( 100vh - 56px );
+	}
+
+	.denise-bubble-panel.is-editor {
+		left: auto;
+		right: 24px;
+	}
+
+	.denise-bubble-head {
+		cursor: grab;
+	}
+
+	.denise-bubble-panel.is-dragging .denise-bubble-head {
+		cursor: grabbing;
+	}
+}

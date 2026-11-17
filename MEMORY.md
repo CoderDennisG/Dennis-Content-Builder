@@ -1,4 +1,4 @@
-# MEMORY — Dennis Content Builder (project handoff)
+# MEMORY — Denise (project handoff)
 
 > **Read this first if you're a Claude instance picking up this project on another machine.**
 > It's a state + context summary so you understand what we're building and why. The
@@ -38,7 +38,7 @@ wrestle with the block editor. Built for **personal + client sites** (not WordPr
 
 ```
 Chat UI (admin page + Gutenberg sidebar; wp.element, no build step)
-   │  REST (dcb/v1, nonce + capability checks, SSE streaming for /chat)
+   │  REST (denise/v1, nonce + capability checks, SSE streaming for /chat)
 AI Orchestrator (server-side Claude tool-use loop; anthropic-ai/sdk)
    │  neutral model + tool calls
 Content engine: neutral block model + GutenbergAdapter (parse/serialize),
@@ -61,7 +61,7 @@ Content engine: neutral block model + GutenbergAdapter (parse/serialize),
   **Reads** the full tree today; **writes** only the reliable scalar/choice/date types this
   release (complex types — repeater, group, flexible content, image, file, relationship — are
   read-only and refused on write with a clear message). ACF written via `update_field`, native via
-  `update_post_meta`. Prior values snapshotted to `_dcb_field_backup` before write (revisions
+  `update_post_meta`. Prior values snapshotted to `_denise_field_backup` before write (revisions
   don't cover meta).
 - **Scheduler** (`includes/Ai/Scheduler.php`) — per-type day+time auto-creation (e.g. MWF 18:00).
   Computes the next occurrence in the site timezone and arms a self-rearming
@@ -74,9 +74,9 @@ Content engine: neutral block model + GutenbergAdapter (parse/serialize),
 
 ## Current state
 
-- **Version: 0.6.0.** Pre-1.0 (we're at 1.0 when it runs on a real client site — see ROADMAP.md).
+- **Version: 0.7.0.** Pre-1.0 (we're at 1.0 when it runs on a real client site — see ROADMAP.md).
 - Shipped so far: prototype pipeline (0.1) → streaming + persistent conversations + audit log +
-  `dcb_use_chat` capability (0.2) → Gutenberg editor sidebar with live canvas refresh (0.3) →
+  `denise_use_chat` capability (0.2) → Gutenberg editor sidebar with live canvas refresh (0.3) →
   settings rebuilt on `@wordpress/components` (0.3.1) → post-type profiles (0.4) → global Allowed
   Blocks tab + compact Post Types list with guidance-in-a-modal (0.4.x) → scheduled auto-creation
   with day/time picker + auto-publish opt-in (0.5) → custom fields read/write (0.6).
@@ -87,7 +87,7 @@ Content engine: neutral block model + GutenbergAdapter (parse/serialize),
 
 ## Stack & conventions
 
-- **PHP 8.1+**, namespace `DCB\` (PSR-4 → `includes/`), prefix `dcb_` for hooks/options/tables/caps.
+- **PHP 8.1+**, namespace `Denise\` (PSR-4 → `includes/`), prefix `denise_` for hooks/options/tables/caps.
   `declare(strict_types=1)`. WordPress Coding Standards enforced (`vendor/bin/phpcs`, config in
   `phpcs.xml.dist`) — keep it clean.
 - **Composer deps:** `anthropic-ai/sdk` (^0.7) + `guzzlehttp/guzzle` (the SDK is transport-agnostic
@@ -95,22 +95,22 @@ Content engine: neutral block model + GutenbergAdapter (parse/serialize),
   found"). `vendor/` is gitignored → run **`composer install`** in the plugin dir on a fresh clone.
 - **JS:** no build step. Settings UI and editor sidebar use the bundled `wp.components` / `wp.element`
   globals via `wp.element.createElement` (no JSX). Chat UI is a vanilla-JS factory
-  (`assets/chat.js` → `dcbCreateChat`). Assets in `assets/`.
+  (`assets/chat.js` → `deniseCreateChat`). Assets in `assets/`.
 - **Default model:** `claude-opus-4-8` (selectable: sonnet-4-6, haiku-4-5). Adaptive thinking, no
   sampling params. `/chat` streams via SSE.
 - **Security/AI-safety invariants (docs/RULES.md):** API key server-side only (write-only field);
   real `permission_callback` on every route; AI output + AI CSS treated as untrusted (validated +
   sanitized); AI can't publish/delete from chat; every edit makes a revision; tool list is
   code-defined; the *only* publish path is scheduled auto-publish on an admin-opted-in type.
-- **Versioning (docs/VERSIONING.md):** SemVer; bump the header `Version:` + `DCB_VERSION` constant +
+- **Versioning (docs/VERSIONING.md):** SemVer; bump the header `Version:` + `DENISE_VERSION` constant +
   CHANGELOG together; tag `vX.Y.Z`; one logical change per commit. Commits co-authored by Claude.
-  DB schema changes go through `includes/Support/Schema.php` gated by `dcb_db_version`.
+  DB schema changes go through `includes/Support/Schema.php` gated by `denise_db_version`.
 
 ## How to run / test
 
 1. `composer install` in the plugin directory (pulls SDK + Guzzle into `vendor/`).
 2. Activate the plugin. Admin menu **Content Builder** (chat) + **Settings** submenu.
-   - Real admin URLs are `wp-admin/admin.php?page=dennis-content-builder` and `…?page=dcb-settings`
+   - Real admin URLs are `wp-admin/admin.php?page=denise` and `…?page=denise-settings`
      (admin pages aren't permalinks).
 3. Settings → General: paste an Anthropic API key, pick a model, **Test connection**.
 4. Settings → Allowed Blocks / Post Types: choose blocks, enable types, set per-type guidance,
@@ -166,7 +166,7 @@ Content engine: neutral block model + GutenbergAdapter (parse/serialize),
 - ACF must be written with `update_field` (it keeps a hidden `_fieldkey` reference); raw meta
   writes corrupt it. Native meta uses `update_post_meta`.
 - Post meta is **not** covered by revisions — that's why field writes snapshot to
-  `_dcb_field_backup`.
+  `_denise_field_backup`.
 
 ## What to confirm on this (other) WP install
 

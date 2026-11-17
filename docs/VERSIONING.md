@@ -21,13 +21,13 @@ We are in `0.x` until the plugin runs on a real client site. During `0.x`:
 
 ## Where the version lives (bump all together)
 
-1. Plugin header `Version:` in `dennis-content-builder.php`
-2. Constant `DENNIS_CONTENT_BUILDER_VERSION`
+1. Plugin header `Version:` in `denise.php`
+2. Constant `DENISE_VERSION` (same file)
 3. `CHANGELOG.md` (release section)
 
 A release isn't done if these disagree. (Add `package.json`/`composer.json` versions to this list once they exist.)
 
-Separate from the plugin version: **`dcb_db_version`** (integer, stored in options) tracks the DB schema and only increments when a migration is added.
+Separate from the plugin version: **`denise_db_version`** (integer, stored in options) tracks the DB schema and only increments when a migration is added.
 
 ## Changelog
 

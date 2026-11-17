@@ -1,5 +1,5 @@
 {
-    "name": "dennis/dennis-content-builder",
+    "name": "dennis/denise",
     "description": "Build and edit WordPress content by chatting with AI.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
@@ -10,7 +10,7 @@
     },
     "autoload": {
         "psr-4": {
-            "DCB\\": "includes/"
+            "Denise\\": "includes/"
         }
     },
     "config": {

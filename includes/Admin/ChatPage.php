@@ -1,110 +1,88 @@
 <?php
 declare(strict_types=1);
 
-namespace DCB\Admin;
+namespace Denise\Admin;
 
-use DCB\Plugin;
+use Denise\Plugin;
 
 /**
- * "Content Builder" admin page hosting the chat UI.
+ * Shared chat assets: the chat core (script, style, config) used by the
+ * Denise page, the block editor sidebar and the front-end bubble.
  * Prototype: plain JS + CSS assets, no build step.
  */
 final class ChatPage {
 
-	private const SLUG = 'dennis-content-builder';
-
 	public function register(): void {
-		add_action( 'admin_menu', array( $this, 'add_menu' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		add_action( 'enqueue_block_editor_assets', array( $this, 'editor_assets' ) );
-	}
-
-	public function add_menu(): void {
-		add_menu_page(
-			__( 'Content Builder', 'dennis-content-builder' ),
-			__( 'Content Builder', 'dennis-content-builder' ),
-			\DCB\Support\Capabilities::USE_CHAT,
-			self::SLUG,
-			array( $this, 'render' ),
-			'dashicons-format-chat',
-			26
-		);
-	}
-
-	public function assets( string $hook ): void {
-		if ( 'toplevel_page_' . self::SLUG !== $hook ) {
-			return;
-		}
-
-		$this->enqueue_chat_core();
 	}
 
 	/** Same chat, inside the block editor as a sidebar. */
 	public function editor_assets(): void {
-		if ( ! current_user_can( \DCB\Support\Capabilities::USE_CHAT ) ) {
+		if ( ! current_user_can( \Denise\Support\Capabilities::USE_CHAT ) ) {
 			return;
 		}
 
 		// Only on post types the admin marked AI-eligible.
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( $screen && ! \DCB\Content\Profiles::is_eligible( (string) $screen->post_type ) ) {
+		if ( $screen && ! \Denise\Content\Profiles::is_eligible( (string) $screen->post_type ) ) {
 			return;
 		}
 
-		$this->enqueue_chat_core();
+		self::enqueue_chat_core();
 
 		wp_enqueue_script(
-			'dcb-editor',
-			DCB_PLUGIN_URL . 'assets/editor.js',
-			array( 'dcb-chat', 'wp-plugins', 'wp-editor', 'wp-element', 'wp-data', 'wp-blocks', 'wp-api-fetch', 'wp-i18n' ),
-			DCB_VERSION,
+			'denise-editor',
+			DENISE_PLUGIN_URL . 'assets/editor.js',
+			array( 'denise-chat', 'wp-plugins', 'wp-editor', 'wp-element', 'wp-data', 'wp-blocks', 'wp-api-fetch', 'wp-i18n' ),
+			\Denise\Plugin::asset_version( 'assets/editor.js' ),
 			true
 		);
 	}
 
-	private function enqueue_chat_core(): void {
-		wp_enqueue_style( 'dcb-chat', DCB_PLUGIN_URL . 'assets/chat.css', array(), DCB_VERSION );
-		wp_enqueue_script( 'dcb-chat', DCB_PLUGIN_URL . 'assets/chat.js', array(), DCB_VERSION, true );
+	/**
+	 * Enqueue the shared chat core (denise-chat script/style + deniseChat config).
+	 * Public + static so other surfaces (editor sidebar, front-end bubble)
+	 * mount the exact same chat against the same REST endpoints.
+	 */
+	public static function enqueue_chat_core(): void {
+		wp_enqueue_style( 'denise-chat', DENISE_PLUGIN_URL . 'assets/chat.css', array(), \Denise\Plugin::asset_version( 'assets/chat.css' ) );
+		wp_enqueue_script( 'denise-chat', DENISE_PLUGIN_URL . 'assets/chat.js', array(), \Denise\Plugin::asset_version( 'assets/chat.js' ), true );
 
 		wp_localize_script(
-			'dcb-chat',
-			'dcbChat',
+			'denise-chat',
+			'deniseChat',
 			array(
-				'chatUrl'          => esc_url_raw( rest_url( 'dcb/v1/chat' ) ),
-				'conversationsUrl' => esc_url_raw( rest_url( 'dcb/v1/conversations' ) ),
+				'chatUrl'          => esc_url_raw( rest_url( 'denise/v1/chat' ) ),
+				'conversationsUrl' => esc_url_raw( rest_url( 'denise/v1/conversations' ) ),
 				'nonce'            => wp_create_nonce( 'wp_rest' ),
 				'hasKey'           => '' !== Plugin::settings()['api_key'],
-				'settings'         => esc_url_raw( admin_url( 'admin.php?page=dcb-settings' ) ),
+				'settings'         => esc_url_raw( admin_url( 'admin.php?page=denise-settings' ) ),
 				'i18n'             => array(
-					'placeholder' => __( 'Describe the page you want, or ask me to edit an existing one…', 'dennis-content-builder' ),
-					'send'        => __( 'Send', 'dennis-content-builder' ),
-					'thinking'    => __( 'Thinking…', 'dennis-content-builder' ),
-					'composing'   => __( 'Writing… %s characters', 'dennis-content-builder' ),
-					'editDraft'   => __( 'Open in editor', 'dennis-content-builder' ),
-					'preview'     => __( 'Preview', 'dennis-content-builder' ),
-					'created'     => __( 'Draft created', 'dennis-content-builder' ),
-					'updated'     => __( 'Content updated', 'dennis-content-builder' ),
-					'noKey'       => __( 'No API key configured yet. Add one in Settings first.', 'dennis-content-builder' ),
-					'error'       => __( 'Something went wrong:', 'dennis-content-builder' ),
-					'newChat'     => __( 'New conversation', 'dennis-content-builder' ),
-					'history'     => __( 'Previous conversations…', 'dennis-content-builder' ),
+					'name'          => __( 'Denise', 'denise' ),
+					'greeting'      => __( "Hi, I'm Denise. What do you need?", 'denise' ),
+					'placeholder'   => __( 'Ask a question, or describe what to build…', 'denise' ),
+					'hint'          => __( 'Enter to send · Shift+Enter for a new line', 'denise' ),
+					'loading'       => __( 'Loading…', 'denise' ),
+					'noHistory'     => __( 'No conversations yet.', 'denise' ),
+					'copy'          => __( 'Copy', 'denise' ),
+					'copied'        => __( 'Copied', 'denise' ),
+					'openSettings'  => __( 'Open Settings', 'denise' ),
+					'delete'        => __( 'Delete conversation', 'denise' ),
+					'deleteConfirm' => __( 'Delete this conversation? This cannot be undone.', 'denise' ),
+					'send'          => __( 'Send', 'denise' ),
+					'thinking'      => __( 'Thinking…', 'denise' ),
+					'composing'     => __( 'Writing… %s characters', 'denise' ),
+					'editDraft'     => __( 'Open in editor', 'denise' ),
+					'preview'       => __( 'Preview', 'denise' ),
+					'created'       => __( 'Draft created', 'denise' ),
+					'updated'       => __( 'Content updated', 'denise' ),
+					'pendingDraft'  => __( 'Draft saved, publish in Elementor', 'denise' ),
+					'noKey'         => __( 'No API key configured yet. Add one in Settings first.', 'denise' ),
+					'error'         => __( 'Something went wrong:', 'denise' ),
+					'newChat'       => __( 'New conversation', 'denise' ),
+					'history'       => __( 'Conversations', 'denise' ),
 				),
 			)
 		);
-	}
-
-	public function render(): void {
-		if ( ! current_user_can( \DCB\Support\Capabilities::USE_CHAT ) ) {
-			return;
-		}
-		?>
-		<div class="wrap dcb-wrap">
-			<h1><?php esc_html_e( 'Content Builder', 'dennis-content-builder' ); ?></h1>
-			<p class="description">
-				<?php esc_html_e( 'Chat with AI to create pages and posts. Everything is saved as a draft for you to review — nothing goes live without you.', 'dennis-content-builder' ); ?>
-			</p>
-			<div id="dcb-chat-app"></div>
-		</div>
-		<?php
 	}
 }

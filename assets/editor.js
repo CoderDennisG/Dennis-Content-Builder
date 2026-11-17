@@ -8,7 +8,7 @@
 ( function () {
 	'use strict';
 
-	if ( ! window.wp || ! wp.plugins || ! window.dcbChat || ! window.dcbCreateChat ) {
+	if ( ! window.wp || ! wp.plugins || ! window.deniseChat || ! window.deniseCreateChat ) {
 		return;
 	}
 
@@ -23,7 +23,7 @@
 
 	const el = wp.element.createElement;
 	const __ = wp.i18n.__;
-	const TITLE = __( 'Content Builder', 'dennis-content-builder' );
+	const TITLE = __( 'Denise', 'denise' );
 
 	function refreshEditor( postId ) {
 		const postType = wp.data.select( 'core/editor' ).getCurrentPostType();
@@ -41,7 +41,7 @@
 
 			if ( wp.data.dispatch( 'core/notices' ) ) {
 				wp.data.dispatch( 'core/notices' ).createInfoNotice(
-					__( 'The assistant updated this page. Review and save.', 'dennis-content-builder' ),
+					__( 'The assistant updated this page. Review and save.', 'denise' ),
 					{ type: 'snackbar' }
 				);
 			}
@@ -54,9 +54,10 @@
 		wp.element.useEffect( function () {
 			const postId = wp.data.select( 'core/editor' ).getCurrentPostId();
 
-			const api = window.dcbCreateChat( ref.current, {
+			const api = window.deniseCreateChat( ref.current, {
 				postId: postId,
 				compact: true,
+				header: false,
 				onAction: function ( action ) {
 					if ( action.post_id === postId && 'updated' === action.action ) {
 						refreshEditor( postId );
@@ -64,7 +65,7 @@
 				},
 				beforeSend: function () {
 					return wp.data.select( 'core/editor' ).isEditedPostDirty()
-						? __( 'Heads up: you have unsaved changes. The assistant works from the last saved version — save first if your edits matter.', 'dennis-content-builder' )
+						? __( 'Heads up: you have unsaved changes. The assistant works from the last saved version — save first if your edits matter.', 'denise' )
 						: null;
 				},
 			} );
@@ -76,20 +77,20 @@
 			};
 		}, [] );
 
-		return el( 'div', { ref: ref, className: 'dcb-sidebar-root' } );
+		return el( 'div', { ref: ref, className: 'denise-sidebar-root' } );
 	}
 
-	wp.plugins.registerPlugin( 'dcb-assistant', {
+	wp.plugins.registerPlugin( 'denise-assistant', {
 		render: function () {
 			return el(
 				wp.element.Fragment,
 				null,
 				PluginSidebarMoreMenuItem
-					? el( PluginSidebarMoreMenuItem, { target: 'dcb-sidebar', icon: 'format-chat' }, TITLE )
+					? el( PluginSidebarMoreMenuItem, { target: 'denise-sidebar', icon: 'format-chat' }, TITLE )
 					: null,
 				el(
 					PluginSidebar,
-					{ name: 'dcb-sidebar', title: TITLE, icon: 'format-chat' },
+					{ name: 'denise-sidebar', title: TITLE, icon: 'format-chat' },
 					el( ChatMount )
 				)
 			);

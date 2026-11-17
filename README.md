@@ -1,4 +1,4 @@
-# Dennis Content Builder
+# Denise
 
 Build and edit WordPress content by chatting with AI — designed so non-coders can create real pages without touching code, while still being able to fine-tune everything in the page builder they already know.
 

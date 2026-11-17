@@ -6,7 +6,7 @@ Each phase ends with something usable and a tagged release. Scope creep goes to 
 
 - [ ] `git init` in the plugin folder; first commit of boilerplate + docs
 - [ ] Reset plugin version to `0.1.0` (header + constant) — we are pre-release
-- [ ] Composer setup (`DCB\` PSR-4 autoload, `anthropic-ai/sdk`)
+- [ ] Composer setup (`Denise\` PSR-4 autoload, `anthropic-ai/sdk`)
 - [ ] `@wordpress/scripts` build tooling (`npm run build` / `start`)
 - [ ] Reshape WPPB boilerplate into the target layout (see ARCHITECTURE.md)
 - [ ] PHPCS with WordPress Coding Standards ruleset
@@ -14,9 +14,9 @@ Each phase ends with something usable and a tagged release. Scope creep goes to 
 ## Phase 1 — Foundation *(v0.2.0)*
 
 - [ ] Settings page: API key (write-only field), model picker, default post type
-- [ ] `dcb_use_chat` capability + role assignment on activation
+- [ ] `denise_use_chat` capability + role assignment on activation
 - [ ] Custom tables for conversations/messages + audit log (dbDelta, schema version option)
-- [ ] REST scaffold `dcb/v1` with auth/permission callbacks and a `/ping` route
+- [ ] REST scaffold `denise/v1` with auth/permission callbacks and a `/ping` route
 - [ ] Smoke-test Claude connection from settings page ("Test connection" button)
 
 ## Phase 2 — Content engine + Gutenberg adapter *(v0.3.0)*
@@ -27,7 +27,7 @@ Each phase ends with something usable and a tagged release. Scope creep goes to 
 - [ ] `GutenbergAdapter`: parse (block markup → model) with `raw` passthrough for unknown blocks
 - [ ] Block vocabulary registry: capability tiers, registry/content discovery, enabled flags (see ARCHITECTURE.md → Block vocabulary)
 - [ ] Styling presets: read theme design system (`wp_get_global_settings()`), `style` object in the neutral model, attribute+class serialization (see ARCHITECTURE.md → Styling)
-- [ ] Per-page custom CSS: `_dcb_custom_css` meta, editor panel, front-end enqueue, CSS sanitizer (see ARCHITECTURE.md → Styling level 3)
+- [ ] Per-page custom CSS: `_denise_custom_css` meta, editor panel, front-end enqueue, CSS sanitizer (see ARCHITECTURE.md → Styling level 3)
 - [ ] "AI Blocks" settings screen: toggle blocks, third-party badge, tier display
 - [ ] Round-trip tests: parse → serialize is non-destructive for supported blocks
 
@@ -69,6 +69,7 @@ Each phase ends with something usable and a tagged release. Scope creep goes to 
 
 ## Later (backlog — not scheduled)
 
+- **Template insertion from the Elementor editor (parked 2026-11-14).** `insert_elementor_template` exists behind `Tools::TEMPLATE_INSERT_ENABLED = false`. Two relays were tried from the bridge: `document/elements/import` with server-fetched content, then Elementor's own `library/open` + `library/insert-template`; both ran without any console/network error and inserted nothing visible. Needs a debugging session in a real browser (watch `[Denise] editor edit` console lines and `$e.commands.on('run:after')`); creating a test login for headless testing was not permitted. Until then Denise tells the person to use Add Template → My Templates → Insert.
 - Second builder adapter (Elementor or Bricks) to prove the abstraction
 - Block patterns / synced patterns support
 - Image generation or AI-assisted media selection

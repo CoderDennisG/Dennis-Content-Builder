@@ -1,22 +1,23 @@
 <?php
 declare(strict_types=1);
 
-namespace DCB\Api;
+namespace Denise\Api;
 
-use DCB\Ai\Orchestrator;
-use DCB\Ai\Scheduler;
-use DCB\Content\Conversations;
-use DCB\Content\Fields;
-use DCB\Content\Profiles;
-use DCB\Plugin;
-use DCB\Support\Capabilities;
-use DCB\Support\SystemUser;
+use Denise\Ai\Orchestrator;
+use Denise\Ai\Scheduler;
+use Denise\Content\Conversations;
+use Denise\Content\Fields;
+use Denise\Content\Profiles;
+use Denise\Content\Titler;
+use Denise\Plugin;
+use Denise\Support\Capabilities;
+use Denise\Support\SystemUser;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * REST namespace dcb/v1. Every route has a real permission callback —
+ * REST namespace denise/v1. Every route has a real permission callback —
  * never __return_true (docs/RULES.md).
  *
  * /chat answers as a Server-Sent Events stream: progress events while
@@ -33,7 +34,7 @@ final class Routes {
 		$can_chat = static fn() => current_user_can( Capabilities::USE_CHAT );
 
 		register_rest_route(
-			'dcb/v1',
+			'denise/v1',
 			'/chat',
 			array(
 				'methods'             => 'POST',
@@ -43,7 +44,7 @@ final class Routes {
 		);
 
 		register_rest_route(
-			'dcb/v1',
+			'denise/v1',
 			'/conversations',
 			array(
 				'methods'             => 'GET',
@@ -53,17 +54,24 @@ final class Routes {
 		);
 
 		register_rest_route(
-			'dcb/v1',
+			'denise/v1',
 			'/conversations/(?P<id>\d+)',
 			array(
-				'methods'             => 'GET',
-				'callback'            => array( $this, 'conversation' ),
-				'permission_callback' => $can_chat,
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'conversation' ),
+					'permission_callback' => $can_chat,
+				),
+				array(
+					'methods'             => 'DELETE',
+					'callback'            => array( $this, 'delete_conversation' ),
+					'permission_callback' => $can_chat,
+				),
 			)
 		);
 
 		register_rest_route(
-			'dcb/v1',
+			'denise/v1',
 			'/test',
 			array(
 				'methods'             => 'POST',
@@ -73,7 +81,7 @@ final class Routes {
 		);
 
 		register_rest_route(
-			'dcb/v1',
+			'denise/v1',
 			'/settings',
 			array(
 				array(
@@ -90,7 +98,7 @@ final class Routes {
 		);
 
 		register_rest_route(
-			'dcb/v1',
+			'denise/v1',
 			'/run-schedule',
 			array(
 				'methods'             => 'POST',
@@ -100,7 +108,7 @@ final class Routes {
 		);
 
 		register_rest_route(
-			'dcb/v1',
+			'denise/v1',
 			'/fields',
 			array(
 				'methods'             => 'GET',
@@ -128,7 +136,7 @@ final class Routes {
 		$result = Scheduler::run_now( $slug );
 
 		if ( isset( $result['error'] ) ) {
-			return new WP_Error( 'dcb_run_failed', $result['error'], array( 'status' => 400 ) );
+			return new WP_Error( 'denise_run_failed', $result['error'], array( 'status' => 400 ) );
 		}
 
 		return new WP_REST_Response( $result, 200 );
@@ -194,7 +202,7 @@ final class Routes {
 		$post_types = array();
 		$profiles   = array();
 		foreach ( Profiles::candidate_post_types() as $pt ) {
-			$post_types[] = array(
+			$post_types[]          = array(
 				'slug'        => $pt->name,
 				'label'       => $pt->labels->name,
 				'block_based' => post_type_supports( $pt->name, 'editor' ),
@@ -220,6 +228,7 @@ final class Routes {
 			'timezone'       => wp_timezone_string(),
 			'schedule_state' => Scheduler::state(),
 			'system_user'    => $system_user ? $system_user->display_name : '',
+			'elementor'      => \Denise\Adapters\ElementorAdapter::is_available(),
 		);
 	}
 
@@ -236,12 +245,12 @@ final class Routes {
 		$this->start_stream();
 
 		if ( '' === $text ) {
-			$this->send( 'error', array( 'message' => __( 'Empty message.', 'dennis-content-builder' ) ) );
+			$this->send( 'error', array( 'message' => __( 'Empty message.', 'denise' ) ) );
 			exit;
 		}
 
 		if ( $conversation_id && ! Conversations::get_owned( $conversation_id, $user_id ) ) {
-			$this->send( 'error', array( 'message' => __( 'Conversation not found.', 'dennis-content-builder' ) ) );
+			$this->send( 'error', array( 'message' => __( 'Conversation not found.', 'denise' ) ) );
 			exit;
 		}
 
@@ -250,7 +259,7 @@ final class Routes {
 		if ( $post_id ) {
 			$post = get_post( $post_id );
 			if ( ! $post || ! current_user_can( 'edit_post', $post_id ) ) {
-				$this->send( 'error', array( 'message' => __( 'You cannot edit this content.', 'dennis-content-builder' ) ) );
+				$this->send( 'error', array( 'message' => __( 'You cannot edit this content.', 'denise' ) ) );
 				exit;
 			}
 			$post_context = array(
@@ -259,6 +268,11 @@ final class Routes {
 				'title'  => $post->post_title,
 				'status' => $post->post_status,
 			);
+			// Live editor state (page open in the Elementor editor): validated, never stored.
+			$live = \Denise\Ai\EditorContext::from_request( $request->get_param( 'editor' ), $post_id );
+			if ( $live ) {
+				$post_context['editor'] = $live;
+			}
 		}
 
 		if ( function_exists( 'set_time_limit' ) ) {
@@ -288,6 +302,7 @@ final class Routes {
 					'reply'           => $result['reply'],
 				)
 			);
+			$this->title_after_done( $conversation_id, $text, (string) $result['reply'] );
 		} catch ( \Throwable $e ) {
 			$this->send( 'error', array( 'message' => $e->getMessage() ) );
 		}
@@ -314,7 +329,7 @@ final class Routes {
 		$id = absint( $request['id'] );
 
 		if ( ! Conversations::get_owned( $id, get_current_user_id() ) ) {
-			return new WP_Error( 'dcb_not_found', __( 'Conversation not found.', 'dennis-content-builder' ), array( 'status' => 404 ) );
+			return new WP_Error( 'denise_not_found', __( 'Conversation not found.', 'denise' ), array( 'status' => 404 ) );
 		}
 
 		return new WP_REST_Response(
@@ -327,6 +342,16 @@ final class Routes {
 		);
 	}
 
+	public function delete_conversation( WP_REST_Request $request ) {
+		$id = absint( $request['id'] );
+
+		if ( ! Conversations::delete( $id, get_current_user_id() ) ) {
+			return new WP_Error( 'denise_not_found', __( 'Conversation not found.', 'denise' ), array( 'status' => 404 ) );
+		}
+
+		return new WP_REST_Response( array( 'deleted' => $id ), 200 );
+	}
+
 	public function test( WP_REST_Request $request ) {
 		try {
 			$model = ( new Orchestrator() )->test_connection();
@@ -334,7 +359,7 @@ final class Routes {
 				array(
 					'ok'      => true,
 					/* translators: %s: model id */
-					'message' => sprintf( __( 'Connected — served by %s.', 'dennis-content-builder' ), $model ),
+					'message' => sprintf( __( 'Connected — served by %s.', 'denise' ), $model ),
 				),
 				200
 			);
@@ -352,6 +377,23 @@ final class Routes {
 	// ------------------------------------------------------------------
 	// SSE plumbing
 	// ------------------------------------------------------------------
+
+	/**
+	 * Name the conversation once the answer is already on its way to the
+	 * browser, then tell the client. Never blocks the answer.
+	 */
+	private function title_after_done( int $conversation_id, string $question, string $reply ): void {
+		$title = Titler::maybe_title( $conversation_id, $question, $reply );
+		if ( null !== $title ) {
+			$this->send(
+				'title',
+				array(
+					'conversation_id' => $conversation_id,
+					'title'           => $title,
+				)
+			);
+		}
+	}
 
 	private function start_stream(): void {
 		// Defeat buffering wherever we can; harmless where we can't.

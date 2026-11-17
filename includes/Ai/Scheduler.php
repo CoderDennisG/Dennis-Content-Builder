@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace DCB\Ai;
+namespace Denise\Ai;
 
-use DCB\Content\Conversations;
-use DCB\Content\Profiles;
-use DCB\Support\SystemUser;
+use Denise\Content\Conversations;
+use Denise\Content\Profiles;
+use Denise\Support\SystemUser;
 use DateTimeImmutable;
 
 /**
@@ -19,9 +19,9 @@ use DateTimeImmutable;
  */
 final class Scheduler {
 
-	public const HOOK          = 'dcb_run_schedule';
-	private const RESYNC_HOOK  = 'dcb_schedule_resync';
-	private const STATE_OPTION = 'dcb_schedule_state';
+	public const HOOK          = 'denise_run_schedule';
+	private const RESYNC_HOOK  = 'denise_schedule_resync';
+	private const STATE_OPTION = 'denise_schedule_state';
 
 	public static function register(): void {
 		add_action( self::HOOK, array( self::class, 'run' ), 10, 1 );
@@ -108,10 +108,10 @@ final class Scheduler {
 	 */
 	public static function run_now( string $slug ): array {
 		if ( ! Profiles::is_eligible( $slug ) ) {
-			return array( 'error' => __( 'This content type is not managed by the assistant.', 'dennis-content-builder' ) );
+			return array( 'error' => __( 'This content type is not managed by the assistant.', 'denise' ) );
 		}
 		if ( '' === trim( Profiles::schedule_for( $slug )['brief'] ) ) {
-			return array( 'error' => __( 'Add a brief and Save before running.', 'dennis-content-builder' ) );
+			return array( 'error' => __( 'Add a brief and Save before running.', 'denise' ) );
 		}
 
 		return self::do_run( $slug );

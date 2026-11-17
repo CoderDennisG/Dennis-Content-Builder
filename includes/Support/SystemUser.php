@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace DCB\Support;
+namespace Denise\Support;
 
 /**
  * A dedicated, plugin-owned user that scheduled runs execute as. Gives
@@ -13,8 +13,8 @@ namespace DCB\Support;
  */
 final class SystemUser {
 
-	public const OPTION = 'dcb_system_user_id';
-	private const LOGIN = 'dcb_content_builder';
+	public const OPTION = 'denise_system_user_id';
+	private const LOGIN = 'denise_content_builder';
 
 	public static function id(): int {
 		return (int) get_option( self::OPTION, 0 );
@@ -44,8 +44,8 @@ final class SystemUser {
 				'user_login'   => self::LOGIN,
 				'user_pass'    => wp_generate_password( 32, true, true ),
 				'user_email'   => 'content-builder@' . $host,
-				'display_name' => 'Content Builder',
-				'nickname'     => 'Content Builder',
+				'display_name' => 'Denise',
+				'nickname'     => 'Denise',
 				'role'         => 'editor',
 			)
 		);

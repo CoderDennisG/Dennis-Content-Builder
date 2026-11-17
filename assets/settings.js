@@ -1,7 +1,7 @@
 /**
  * Settings page UI — WordPress's bundled @wordpress/components, no build
  * step. Two tabs: General (API + access) and Post Types (per-type
- * profiles). Reads/writes the dcb/v1/settings REST endpoint.
+ * profiles). Reads/writes the denise/v1/settings REST endpoint.
  */
 ( function () {
 	'use strict';
@@ -53,7 +53,7 @@
 			if ( ! editing || fieldDefs[ editing ] !== undefined ) {
 				return;
 			}
-			apiFetch( { path: '/dcb/v1/fields?post_type=' + encodeURIComponent( editing ) } )
+			apiFetch( { path: '/denise/v1/fields?post_type=' + encodeURIComponent( editing ) } )
 				.then( function ( res ) {
 					setFieldDefs( function ( prev ) {
 						const next = Object.assign( {}, prev );
@@ -71,7 +71,7 @@
 		}, [ editing ] );
 
 		useEffect( function () {
-			apiFetch( { path: '/dcb/v1/settings' } )
+			apiFetch( { path: '/denise/v1/settings' } )
 				.then( function ( payload ) {
 					setData( payload );
 					setModel( payload.model );
@@ -92,7 +92,7 @@
 			setSaving( true );
 			setNotice( null );
 			apiFetch( {
-				path: '/dcb/v1/settings',
+				path: '/denise/v1/settings',
 				method: 'POST',
 				data: { model: model, api_key: apiKey, roles: roles, profiles: profiles, allowed_blocks: allowedBlocks },
 			} )
@@ -104,7 +104,7 @@
 					setAllowedBlocks( payload.allowed_blocks || [] );
 					setApiKey( '' );
 					setTestResult( null );
-					setNotice( { status: 'success', text: __( 'Settings saved.', 'dennis-content-builder' ) } );
+					setNotice( { status: 'success', text: __( 'Settings saved.', 'denise' ) } );
 				} )
 				.catch( function ( err ) {
 					setNotice( { status: 'error', text: err.message } );
@@ -117,7 +117,7 @@
 		function test() {
 			setTesting( true );
 			setTestResult( null );
-			apiFetch( { path: '/dcb/v1/test', method: 'POST' } )
+			apiFetch( { path: '/denise/v1/test', method: 'POST' } )
 				.then( function ( res ) {
 					setTestResult( res );
 				} )
@@ -151,7 +151,7 @@
 		function runNow( slug ) {
 			setRunning( true );
 			setRunResult( null );
-			apiFetch( { path: '/dcb/v1/run-schedule', method: 'POST', data: { post_type: slug } } )
+			apiFetch( { path: '/denise/v1/run-schedule', method: 'POST', data: { post_type: slug } } )
 				.then( function ( res ) {
 					setRunResult( { ok: true, edit: res.edit, published: res.published } );
 				} )
@@ -170,8 +170,8 @@
 			} );
 
 			const keyHelp = data.has_key
-				? __( 'A key is saved. Leave blank to keep it, or paste a new one to replace it. The key never leaves the server.', 'dennis-content-builder' )
-				: __( 'Paste your Anthropic API key. It is stored server-side and never sent to the browser.', 'dennis-content-builder' );
+				? __( 'A key is saved. Leave blank to keep it, or paste a new one to replace it. The key never leaves the server.', 'denise' )
+				: __( 'Paste your Anthropic API key. It is stored server-side and never sent to the browser.', 'denise' );
 
 			return e(
 				'div',
@@ -179,44 +179,45 @@
 				e(
 					Card,
 					null,
-					e( CardHeader, null, e( 'h2', { className: 'dcb-card-title' }, __( 'API connection', 'dennis-content-builder' ) ) ),
+					e( CardHeader, null, e( 'h2', { className: 'denise-card-title' }, __( 'API connection', 'denise' ) ) ),
 					e(
 						CardBody,
 						null,
 						e( TextControl, Object.assign( {}, noMargin, {
 							type: 'password',
 							autoComplete: 'off',
-							label: __( 'Anthropic API key', 'dennis-content-builder' ),
+							label: __( 'Anthropic API key', 'denise' ),
 							value: apiKey,
 							placeholder: data.has_key ? data.key_hint : 'sk-ant-…',
 							help: keyHelp,
 							onChange: setApiKey,
 						} ) ),
-						e( 'div', { className: 'dcb-field' },
+						e( 'div', { className: 'denise-field' },
 							e( SelectControl, Object.assign( {}, noMargin, {
-								label: __( 'Model', 'dennis-content-builder' ),
+								label: __( 'Model', 'denise' ),
 								value: model,
 								options: modelOptions,
+								help: __( 'Used for everything Denise does. Sonnet 5.5 keeps answers snappy and drafts well; pick Opus for heavier page composition.', 'denise' ),
 								onChange: setModel,
 							} ) )
 						),
 						e(
 							Flex,
-							{ justify: 'flex-start', gap: 3, className: 'dcb-field' },
+							{ justify: 'flex-start', gap: 3, className: 'denise-field' },
 							e(
 								Button,
 								{ variant: 'secondary', onClick: test, isBusy: testing, disabled: testing || ! data.has_key },
-								__( 'Test connection', 'dennis-content-builder' )
+								__( 'Test connection', 'denise' )
 							),
-							testResult && e( 'span', { className: testResult.ok ? 'dcb-test-ok' : 'dcb-test-fail' }, testResult.message ),
-							! data.has_key && e( 'span', { className: 'dcb-test-hint' }, __( 'Save a key first.', 'dennis-content-builder' ) )
+							testResult && e( 'span', { className: testResult.ok ? 'denise-test-ok' : 'denise-test-fail' }, testResult.message ),
+							! data.has_key && e( 'span', { className: 'denise-test-hint' }, __( 'Save a key first.', 'denise' ) )
 						)
 					)
 				),
 				e(
 					Card,
-					{ className: 'dcb-card-spaced' },
-					e( CardHeader, null, e( 'h2', { className: 'dcb-card-title' }, __( 'Who can use the chat', 'dennis-content-builder' ) ) ),
+					{ className: 'denise-card-spaced' },
+					e( CardHeader, null, e( 'h2', { className: 'denise-card-title' }, __( 'Who can use the chat', 'denise' ) ) ),
 					e(
 						CardBody,
 						null,
@@ -224,7 +225,7 @@
 							const isAdmin = slug === data.admin_role;
 							return e( CheckboxControl, Object.assign( {}, noMargin, {
 								key: slug,
-								label: data.all_roles[ slug ] + ( isAdmin ? __( ' (always)', 'dennis-content-builder' ) : '' ),
+								label: data.all_roles[ slug ] + ( isAdmin ? __( ' (always)', 'denise' ) : '' ),
 								checked: isAdmin || roles.indexOf( slug ) !== -1,
 								disabled: isAdmin,
 								onChange: function ( checked ) {
@@ -239,7 +240,7 @@
 								},
 							} ) );
 						} ),
-						e( 'p', { className: 'dcb-muted' }, __( 'Checked roles can open the Content Builder chat. Editing rights are still enforced per page on top of this.', 'dennis-content-builder' ) )
+						e( 'p', { className: 'denise-muted' }, __( 'Checked roles can open the Denise chat. Editing rights are still enforced per page on top of this.', 'denise' ) )
 					)
 				)
 			);
@@ -250,12 +251,12 @@
 			return e(
 				'div',
 				null,
-				e( 'p', { className: 'dcb-muted dcb-intro' }, __( 'Choose which blocks the assistant may use across all content. Leave everything unchecked to allow every block.', 'dennis-content-builder' ) ),
+				e( 'p', { className: 'denise-muted denise-intro' }, __( 'Choose which blocks the assistant may use across all content. Leave everything unchecked to allow every block.', 'denise' ) ),
 				e(
 					Card,
 					null,
 					e( CardBody, null,
-						e( 'div', { className: 'dcb-block-grid' },
+						e( 'div', { className: 'denise-block-grid' },
 							Object.keys( data.block_catalog ).map( function ( block ) {
 								return e( CheckboxControl, Object.assign( {}, noMargin, {
 									key: block,
@@ -285,8 +286,8 @@
 
 			return e(
 				'div',
-				{ key: pt.slug, className: 'dcb-type-row' },
-				e( 'div', { className: 'dcb-type-main' },
+				{ key: pt.slug, className: 'denise-type-row' },
+				e( 'div', { className: 'denise-type-main' },
 					e( CheckboxControl, Object.assign( {}, noMargin, {
 						label: pt.label,
 						checked: !! profile.enabled,
@@ -294,14 +295,14 @@
 							patchProfile( pt.slug, { enabled: checked } );
 						},
 					} ) ),
-					e( 'span', { className: 'dcb-pill' }, pt.block_based ? __( 'Blocks', 'dennis-content-builder' ) : __( 'Fields', 'dennis-content-builder' ) )
+					e( 'span', { className: 'denise-pill' }, pt.block_based ? __( 'Blocks', 'denise' ) : __( 'Fields', 'denise' ) )
 				),
 				e( Button, {
-					className: 'dcb-guidance-btn' + ( hasGuidance ? ' dcb-has-guidance' : '' ),
+					className: 'denise-guidance-btn' + ( hasGuidance ? ' denise-has-guidance' : '' ),
 					icon: 'edit',
 					label: hasGuidance
-						? __( 'Edit writing guidance (set)', 'dennis-content-builder' )
-						: __( 'Add writing guidance', 'dennis-content-builder' ),
+						? __( 'Edit writing guidance (set)', 'denise' )
+						: __( 'Add writing guidance', 'denise' ),
 					showTooltip: true,
 					onClick: function () {
 						setEditing( pt.slug );
@@ -314,8 +315,8 @@
 			return e(
 				'div',
 				null,
-				e( 'p', { className: 'dcb-muted dcb-intro' }, __( 'Check the types the assistant may manage. Use the pencil to set how it should write each one.', 'dennis-content-builder' ) ),
-				e( Card, null, e( CardBody, { className: 'dcb-type-list' }, ( data.post_types || [] ).map( typeRow ) ) )
+				e( 'p', { className: 'denise-muted denise-intro' }, __( 'Check the types the assistant may manage. Use the pencil to set how it should write each one.', 'denise' ) ),
+				e( Card, null, e( CardBody, { className: 'denise-type-list' }, ( data.post_types || [] ).map( typeRow ) ) )
 			);
 		}
 
@@ -340,23 +341,23 @@
 				return e( Spinner );
 			}
 			if ( ! defs.length ) {
-				return e( 'p', { className: 'dcb-muted' }, __( 'No custom fields found for this type.', 'dennis-content-builder' ) );
+				return e( 'p', { className: 'denise-muted' }, __( 'No custom fields found for this type.', 'denise' ) );
 			}
 
 			const allowed = ( profile.fields ) || [];
 
-			return e( 'div', { className: 'dcb-field-list' },
+			return e( 'div', { className: 'denise-field-list' },
 				defs.map( function ( f, idx ) {
 					const ro = ! f.writable;
 					if ( f.depth > 0 ) {
 						// Nested sub-field: shown for context, governed by its parent.
 						return e( 'div', {
 							key: idx,
-							className: 'dcb-field-sub',
+							className: 'denise-field-sub',
 							style: { marginLeft: ( f.depth * 16 ) + 'px' },
 						}, '↳ ' + f.label + ' ' + typeTag( f.type, ro ) );
 					}
-					return e( 'div', { key: idx, className: 'dcb-field-top' },
+					return e( 'div', { key: idx, className: 'denise-field-top' },
 						e( CheckboxControl, Object.assign( {}, noMargin, {
 							label: f.label,
 							checked: allowed.indexOf( f.name ) !== -1,
@@ -364,7 +365,7 @@
 								toggleField( pt.slug, f.name, checked );
 							},
 						} ) ),
-						e( 'span', { className: 'dcb-field-tag' }, typeTag( f.type, ro ) )
+						e( 'span', { className: 'denise-field-tag' }, typeTag( f.type, ro ) )
 					);
 				} )
 			);
@@ -392,46 +393,63 @@
 
 			return e(
 				Modal,
-				{ title: pt.label, onRequestClose: closeModal, className: 'dcb-guidance-modal' },
+				{ title: pt.label, onRequestClose: closeModal, className: 'denise-guidance-modal' },
 
 				// Writing guidance
 				e( TextareaControl, Object.assign( {}, noMargin, {
-					label: __( 'Writing guidance', 'dennis-content-builder' ),
-					help: __( 'How should the assistant write this type? Tone, structure, what to include. Optional. Remember to Save settings after closing.', 'dennis-content-builder' ),
+					label: __( 'Writing guidance', 'denise' ),
+					help: __( 'How should the assistant write this type? Tone, structure, what to include. Optional. Remember to Save settings after closing.', 'denise' ),
 					rows: 6,
 					value: profile.instructions || '',
 					onChange: function ( value ) {
 						patchProfile( editing, { instructions: value } );
 					},
 				} ) ),
-				e( 'hr', { className: 'dcb-sep' } ),
+
+				// Builder: which page builder new content of this type is created with.
+				e( SelectControl, Object.assign( {}, noMargin, {
+					className: 'denise-field',
+					label: __( 'Build new content with', 'denise' ),
+					help: data.elementor
+						? __( 'Which page builder the assistant uses when it creates new content of this type. Elementor pages open in the Elementor editor. An explicit request in chat still wins.', 'denise' )
+						: __( 'Elementor is unavailable (Elementor + EMCP Tools must be active), so new content is built with the block editor.', 'denise' ),
+					value: profile.builder || 'gutenberg',
+					options: [
+						{ label: __( 'Block editor (Gutenberg)', 'denise' ), value: 'gutenberg' },
+						{ label: __( 'Elementor', 'denise' ), value: 'elementor', disabled: ! data.elementor },
+					],
+					onChange: function ( value ) {
+						patchProfile( editing, { builder: value } );
+					},
+				} ) ),
+				e( 'hr', { className: 'denise-sep' } ),
 
 				// Custom fields
-				e( 'p', { className: 'dcb-subhead' }, __( 'Custom fields', 'dennis-content-builder' ) ),
-				e( 'p', { className: 'dcb-muted' }, __( 'Tick the fields the assistant may read. Text, number, choice, true/false and date fields can also be written; complex fields (repeater, group, flexible content, image, relationship) are read-only for now.', 'dennis-content-builder' ) ),
+				e( 'p', { className: 'denise-subhead' }, __( 'Custom fields', 'denise' ) ),
+				e( 'p', { className: 'denise-muted' }, __( 'Tick the fields the assistant may read. Text, number, choice, true/false and date fields can also be written; complex fields (repeater, group, flexible content, image, relationship) are read-only for now.', 'denise' ) ),
 				fieldsSection( pt, profile ),
 
-				e( 'hr', { className: 'dcb-sep' } ),
+				e( 'hr', { className: 'denise-sep' } ),
 
 				// Automatic creation
-				e( 'p', { className: 'dcb-subhead' }, __( 'Automatic creation', 'dennis-content-builder' ) ),
+				e( 'p', { className: 'denise-subhead' }, __( 'Automatic creation', 'denise' ) ),
 				e( CheckboxControl, Object.assign( {}, noMargin, {
-					label: __( 'Create new content automatically on a schedule', 'dennis-content-builder' ),
+					label: __( 'Create new content automatically on a schedule', 'denise' ),
 					checked: !! schedule.enabled,
 					onChange: function ( checked ) {
 						patchSchedule( editing, { enabled: checked } );
 					},
 				} ) ),
 
-				schedule.enabled && e( 'div', { className: 'dcb-sched' },
-					e( 'p', { className: 'dcb-sched-label' }, __( 'Days', 'dennis-content-builder' ) ),
-					e( 'div', { className: 'dcb-day-row' },
+				schedule.enabled && e( 'div', { className: 'denise-sched' },
+					e( 'p', { className: 'denise-sched-label' }, __( 'Days', 'denise' ) ),
+					e( 'div', { className: 'denise-day-row' },
 						( data.weekdays || [] ).map( function ( d ) {
 							const on = schedule.days.indexOf( d ) !== -1;
 							return e( Button, {
 								key: d,
 								variant: on ? 'primary' : 'secondary',
-								className: 'dcb-day',
+								className: 'denise-day',
 								onClick: function () {
 									patchSchedule( editing, {
 										days: on ? schedule.days.filter( function ( x ) {
@@ -442,24 +460,24 @@
 							}, dayLabels[ d ] || d );
 						} )
 					),
-					e( 'div', { className: 'dcb-field' },
+					e( 'div', { className: 'denise-field' },
 						e( TextControl, Object.assign( {}, noMargin, {
 							type: 'time',
-							label: __( 'Time', 'dennis-content-builder' ),
+							label: __( 'Time', 'denise' ),
 							value: schedule.time,
 							onChange: function ( v ) {
 								patchSchedule( editing, { time: v } );
 							},
 						} ) ),
-						e( 'p', { className: 'dcb-muted' },
+						e( 'p', { className: 'denise-muted' },
 							/* translators: %s: site timezone */
-							( __( 'Site timezone: %s', 'dennis-content-builder' ) ).replace( '%s', data.timezone || 'UTC' )
+							( __( 'Site timezone: %s', 'denise' ) ).replace( '%s', data.timezone || 'UTC' )
 						)
 					),
-					e( 'div', { className: 'dcb-field' },
+					e( 'div', { className: 'denise-field' },
 						e( TextareaControl, Object.assign( {}, noMargin, {
-							label: __( 'What should each run create?', 'dennis-content-builder' ),
-							help: __( 'A standing brief used every run, e.g. "Write a fresh beginner WordPress tip with a short intro and 3 steps."', 'dennis-content-builder' ),
+							label: __( 'What should each run create?', 'denise' ),
+							help: __( 'A standing brief used every run, e.g. "Write a fresh beginner WordPress tip with a short intro and 3 steps."', 'denise' ),
 							rows: 3,
 							value: schedule.brief,
 							onChange: function ( v ) {
@@ -468,26 +486,26 @@
 						} ) )
 					),
 					e( CheckboxControl, Object.assign( {}, noMargin, {
-						className: 'dcb-field',
-						label: __( 'Publish automatically (skip review)', 'dennis-content-builder' ),
+						className: 'denise-field',
+						label: __( 'Publish automatically (skip review)', 'denise' ),
 						checked: !! schedule.auto_publish,
 						onChange: function ( checked ) {
 							patchSchedule( editing, { auto_publish: checked } );
 						},
 					} ) ),
-					schedule.auto_publish && e( 'p', { className: 'dcb-warn' },
-						__( '⚠ Generated content goes live with no human review. Leave off to create drafts you approve first.', 'dennis-content-builder' )
+					schedule.auto_publish && e( 'p', { className: 'denise-warn' },
+						__( '⚠ Generated content goes live with no human review. Leave off to create drafts you approve first.', 'denise' )
 					),
-					e( 'p', { className: 'dcb-muted' },
-						__( 'Last run: ', 'dennis-content-builder' ) + fmt( state.last_run ) +
-						__( ' · Next: ', 'dennis-content-builder' ) + fmt( state.next_run ) +
-						__( ' (updates after Save)', 'dennis-content-builder' )
+					e( 'p', { className: 'denise-muted' },
+						__( 'Last run: ', 'denise' ) + fmt( state.last_run ) +
+						__( ' · Next: ', 'denise' ) + fmt( state.next_run ) +
+						__( ' (updates after Save)', 'denise' )
 					)
 				),
 
-				e( 'hr', { className: 'dcb-sep' } ),
-				e( 'p', { className: 'dcb-muted' }, __( 'Run now uses your last saved settings — Save first if you just made changes.', 'dennis-content-builder' ) ),
-				e( 'div', { className: 'dcb-actions' },
+				e( 'hr', { className: 'denise-sep' } ),
+				e( 'p', { className: 'denise-muted' }, __( 'Run now uses your last saved settings — Save first if you just made changes.', 'denise' ) ),
+				e( 'div', { className: 'denise-actions' },
 					e( Button, {
 						variant: 'secondary',
 						onClick: function () {
@@ -495,30 +513,30 @@
 						},
 						isBusy: running,
 						disabled: running,
-					}, __( 'Run now', 'dennis-content-builder' ) ),
+					}, __( 'Run now', 'denise' ) ),
 					runResult && runResult.ok && e( 'a', { href: runResult.edit, target: '_blank', rel: 'noreferrer' },
-						runResult.published ? __( 'Published — open', 'dennis-content-builder' ) : __( 'Draft created — open', 'dennis-content-builder' )
+						runResult.published ? __( 'Published — open', 'denise' ) : __( 'Draft created — open', 'denise' )
 					),
-					runResult && ! runResult.ok && e( 'span', { className: 'dcb-test-fail' }, runResult.message ),
-					e( Button, { variant: 'primary', onClick: closeModal }, __( 'Done', 'dennis-content-builder' ) )
+					runResult && ! runResult.ok && e( 'span', { className: 'denise-test-fail' }, runResult.message ),
+					e( Button, { variant: 'primary', onClick: closeModal }, __( 'Done', 'denise' ) )
 				)
 			);
 		}
 
 		return e(
 			'div',
-			{ className: 'dcb-settings-app' },
+			{ className: 'denise-settings-app' },
 			notice && e( Notice, { status: notice.status, isDismissible: true, onRemove: function () {
 				setNotice( null );
 			} }, notice.text ),
 			e(
 				TabPanel,
 				{
-					className: 'dcb-tabs',
+					className: 'denise-tabs',
 					tabs: [
-						{ name: 'general', title: __( 'General', 'dennis-content-builder' ) },
-						{ name: 'blocks', title: __( 'Allowed Blocks', 'dennis-content-builder' ) },
-						{ name: 'types', title: __( 'Post Types', 'dennis-content-builder' ) },
+						{ name: 'general', title: __( 'General', 'denise' ) },
+						{ name: 'blocks', title: __( 'Allowed Blocks', 'denise' ) },
+						{ name: 'types', title: __( 'Post Types', 'denise' ) },
 					],
 				},
 				function ( tab ) {
@@ -533,14 +551,14 @@
 			),
 			e(
 				'div',
-				{ className: 'dcb-actions' },
-				e( Button, { variant: 'primary', onClick: save, isBusy: saving, disabled: saving }, __( 'Save settings', 'dennis-content-builder' ) )
+				{ className: 'denise-actions' },
+				e( Button, { variant: 'primary', onClick: save, isBusy: saving, disabled: saving }, __( 'Save settings', 'denise' ) )
 			),
 			editing && guidanceModal()
 		);
 	}
 
-	const mount = document.getElementById( 'dcb-settings-root' );
+	const mount = document.getElementById( 'denise-settings-root' );
 	if ( mount ) {
 		if ( createRoot ) {
 			createRoot( mount ).render( e( App ) );

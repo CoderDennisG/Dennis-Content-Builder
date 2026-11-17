@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace DCB\Admin;
+namespace Denise\Admin;
 
 /**
  * Settings page. The UI is a small React app built on WordPress's
  * bundled @wordpress/components (no build step); it reads and writes
- * through the dcb/v1/settings REST endpoint.
+ * through the denise/v1/settings REST endpoint.
  */
 final class Settings {
 
@@ -20,11 +20,11 @@ final class Settings {
 
 	public function add_menu(): void {
 		$hook = add_submenu_page(
-			'dennis-content-builder',
-			__( 'Content Builder Settings', 'dennis-content-builder' ),
-			__( 'Settings', 'dennis-content-builder' ),
+			DenisePage::PARENT,
+			__( 'Denise Settings', 'denise' ),
+			__( 'Settings', 'denise' ),
 			'manage_options',
-			'dcb-settings',
+			'denise-settings',
 			array( $this, 'render' )
 		);
 
@@ -37,13 +37,13 @@ final class Settings {
 		}
 
 		wp_enqueue_style( 'wp-components' );
-		wp_enqueue_style( 'dcb-settings', DCB_PLUGIN_URL . 'assets/settings.css', array( 'wp-components' ), DCB_VERSION );
+		wp_enqueue_style( 'denise-settings', DENISE_PLUGIN_URL . 'assets/settings.css', array( 'wp-components' ), \Denise\Plugin::asset_version( 'assets/settings.css' ) );
 
 		wp_enqueue_script(
-			'dcb-settings',
-			DCB_PLUGIN_URL . 'assets/settings.js',
+			'denise-settings',
+			DENISE_PLUGIN_URL . 'assets/settings.js',
 			array( 'wp-element', 'wp-components', 'wp-api-fetch', 'wp-i18n' ),
-			DCB_VERSION,
+			\Denise\Plugin::asset_version( 'assets/settings.js' ),
 			true
 		);
 	}
@@ -53,9 +53,16 @@ final class Settings {
 			return;
 		}
 		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'Content Builder Settings', 'dennis-content-builder' ); ?></h1>
-			<div id="dcb-settings-root"></div>
+		<div class="wrap denise-settings-wrap">
+			<h1 class="screen-reader-text"><?php esc_html_e( 'Denise Settings', 'denise' ); ?></h1>
+			<div class="denise-settings-head">
+				<span class="denise-avatar" aria-hidden="true">D</span>
+				<div>
+					<div class="denise-settings-head-title"><?php esc_html_e( 'Denise', 'denise' ); ?></div>
+					<div class="denise-settings-head-sub"><?php esc_html_e( 'Settings · connection, access, content types', 'denise' ); ?></div>
+				</div>
+			</div>
+			<div id="denise-settings-root"></div>
 		</div>
 		<?php
 	}
